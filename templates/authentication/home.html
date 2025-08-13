@@ -1,0 +1,498 @@
+{% extends 'base.html' %}
+
+{% block title %}Detectify - Advanced AI Face Recognition System{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="bg-white">
+    <div class="max-w-7xl mx-auto">
+        <div class="relative z-10 pb-8 bg-white sm:pb-16 md:pb-20 lg:max-w-2xl lg:w-full lg:pb-28 xl:pb-32">
+            <main class="mt-10 mx-auto max-w-7xl px-4 sm:mt-12 sm:px-6 md:mt-16 lg:mt-20 lg:px-8 xl:mt-28">
+                <div class="sm:text-center lg:text-left">
+                    <div class="mb-6">
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            AI-Powered Detection
+                        </span>
+                    </div>
+                    <h1 class="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl">
+                        <span class="block text-blue-600">Detectify</span>
+                    </h1>
+                    <h2 class="mt-3 text-xl text-gray-500 sm:text-2xl">Advanced Face Recognition System</h2>
+                    <p class="mt-6 text-lg text-gray-500 max-w-md">
+                        Professional-grade face recognition technology for security and investigation teams. 
+                        Upload suspect images and videos to automatically detect and analyze faces with precision.
+                    </p>
+                    
+                    {% if not user.is_authenticated %}
+                    <div class="mt-8 flex flex-col sm:flex-row gap-4">
+                        <a href="{% url 'authentication:register' %}" class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                            </svg>
+                            Get Started
+                        </a>
+                        <a href="{% url 'authentication:login' %}" class="inline-flex items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
+                            </svg>
+                            Sign In
+                        </a>
+                    </div>
+                    {% else %}
+                    <div class="mt-8 flex flex-col sm:flex-row gap-4">
+                        <a href="{% url 'cases:dashboard' %}" class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                            </svg>
+                            Dashboard
+                        </a>
+                        <a href="{% url 'cases:create_case' %}" class="inline-flex items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                            </svg>
+                            New Case
+                        </a>
+                    </div>
+                    {% endif %}
+
+                    <div class="mt-8 grid grid-cols-3 gap-6 text-center">
+                        <div>
+                            <div class="text-blue-600 mb-2">
+                                <svg class="w-8 h-8 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                                </svg>
+                            </div>
+                            <p class="text-sm text-gray-500">Secure & Private</p>
+                        </div>
+                        <div>
+                            <div class="text-blue-600 mb-2">
+                                <svg class="w-8 h-8 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                            </div>
+                            <p class="text-sm text-gray-500">Real-time Processing</p>
+                        </div>
+                        <div>
+                            <div class="text-blue-600 mb-2">
+                                <svg class="w-8 h-8 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                            </div>
+                            <p class="text-sm text-gray-500">99% Accuracy</p>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+        <div class="lg:absolute lg:inset-y-0 lg:right-0 lg:w-1/2">
+            <div class="h-56 w-full bg-gray-100 sm:h-72 md:h-96 lg:w-full lg:h-full flex items-center justify-center">
+                <div class="text-center">
+                    <svg class="w-32 h-32 text-blue-600 opacity-30 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                    <h4 class="text-xl text-gray-600 mt-4">Face Detection Technology</h4>
+                    <p class="text-gray-500">Advanced AI algorithms for accurate identification</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Features Section -->
+<div class="py-16 bg-gray-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center">
+            <h3 class="text-3xl font-extrabold text-gray-900">Key Features</h3>
+            <p class="mt-4 text-lg text-gray-500">Everything you need for professional face recognition</p>
+        </div>
+        <div class="mt-12 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
+            <div class="bg-white rounded-lg shadow-sm p-6 text-center">
+                <div class="text-blue-600 mb-4">
+                    <svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                    </svg>
+                </div>
+                <h5 class="text-lg font-semibold text-gray-900 mb-2">Easy Upload</h5>
+                <p class="text-gray-500">
+                    Upload suspect images and video files with simple drag-and-drop interface.
+                </p>
+            </div>
+            <div class="bg-white rounded-lg shadow-sm p-6 text-center">
+                <div class="text-blue-600 mb-4">
+                    <svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                </div>
+                <h5 class="text-lg font-semibold text-gray-900 mb-2">AI Detection</h5>
+                <p class="text-gray-500">
+                    Advanced algorithms automatically detect and analyze faces in your media.
+                </p>
+            </div>
+            <div class="bg-white rounded-lg shadow-sm p-6 text-center">
+                <div class="text-blue-600 mb-4">
+                    <svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                    </svg>
+                </div>
+                <h5 class="text-lg font-semibold text-gray-900 mb-2">Detailed Reports</h5>
+                <p class="text-gray-500">
+                    Generate comprehensive reports with detection results and analytics.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Process Section -->
+<div class="py-16 bg-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center">
+            <h3 class="text-3xl font-extrabold text-gray-900">How It Works</h3>
+            <p class="mt-4 text-lg text-gray-500">Simple three-step process</p>
+        </div>
+        <div class="mt-12 grid grid-cols-1 gap-8 md:grid-cols-3">
+            <div class="text-center">
+                <div class="w-16 h-16 bg-blue-600 text-white rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span class="text-xl font-bold">1</span>
+                </div>
+                <h5 class="text-lg font-semibold text-gray-900 mb-2">Upload Media</h5>
+                <p class="text-gray-500">Upload suspect images and video files to create a new case.</p>
+            </div>
+            <div class="text-center">
+                <div class="w-16 h-16 bg-blue-600 text-white rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span class="text-xl font-bold">2</span>
+                </div>
+                <h5 class="text-lg font-semibold text-gray-900 mb-2">AI Processing</h5>
+                <p class="text-gray-500">Our AI algorithms analyze and detect faces automatically.</p>
+            </div>
+            <div class="text-center">
+                <div class="w-16 h-16 bg-blue-600 text-white rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span class="text-xl font-bold">3</span>
+                </div>
+                <h5 class="text-lg font-semibold text-gray-900 mb-2">Get Results</h5>
+                <p class="text-gray-500">Review detailed detection results and export reports.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CTA Section -->
+{% if not user.is_authenticated %}
+<div class="bg-blue-600">
+    <div class="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:py-16 lg:px-8 lg:flex lg:items-center lg:justify-between">
+        <h2 class="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
+            <span class="block">Ready to get started?</span>
+            <span class="block text-blue-200">Join professionals using Detectify for advanced face recognition.</span>
+        </h2>
+        <div class="mt-8 flex lg:mt-0 lg:flex-shrink-0">
+            <div class="inline-flex rounded-md shadow">
+                <a href="{% url 'authentication:register' %}" class="inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-blue-600 bg-white hover:bg-blue-50">
+                    Create Account
+                    <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                    </svg>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-lightning-bolt text-warning me-2"></i>
+                            <span>Real-time Processing</span>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-chart-bar text-info me-2"></i>
+                            <span>Advanced Analytics</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="hero-image text-center">
+                    <div class="position-relative">
+                        <div class="bg-white rounded-4 shadow-xl p-4 d-inline-block">
+                            <i class="fas fa-brain display-1 text-gradient"></i>
+                        </div>
+                        <div class="position-absolute top-0 start-0">
+                            <div class="bg-success rounded-circle d-flex align-items-center justify-content-center" 
+                                 style="width: 60px; height: 60px; transform: translate(-20px, -10px);">
+                                <i class="fas fa-check text-white fs-5"></i>
+                            </div>
+                        </div>
+                        <div class="position-absolute bottom-0 end-0">
+                            <div class="bg-info rounded-circle d-flex align-items-center justify-content-center" 
+                                 style="width: 40px; height: 40px; transform: translate(20px, 20px);">
+                                <i class="fas fa-eye text-white"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Professional Features Section -->
+<div class="container mb-5">
+    <div class="text-center mb-5">
+        <h2 class="h1 fw-bold mb-3">Powerful AI Capabilities</h2>
+        <p class="lead text-muted">Everything you need for professional face recognition and analysis</p>
+    </div>
+    
+    <div class="row g-4">
+        <div class="col-lg-4 col-md-6">
+            <div class="feature-card card h-100 border-0 shadow-lg">
+                <div class="card-body text-center p-4">
+                    <div class="feature-icon bg-gradient-primary rounded-circle d-inline-flex align-items-center justify-content-center mb-4" 
+                         style="width: 80px; height: 80px;">
+                        <i class="fas fa-upload fa-2x text-white"></i>
+                    </div>
+                    <h5 class="fw-bold mb-3">Smart Upload System</h5>
+                    <p class="text-muted mb-4">
+                        Drag-and-drop interface with support for multiple formats. 
+                        Automatic validation and optimization for best results.
+                    </p>
+                    <div class="d-flex justify-content-center gap-2">
+                        <span class="badge bg-light text-dark">JPG</span>
+                        <span class="badge bg-light text-dark">PNG</span>
+                        <span class="badge bg-light text-dark">MP4</span>
+                        <span class="badge bg-light text-dark">AVI</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 col-md-6">
+            <div class="feature-card card h-100 border-0 shadow-lg">
+                <div class="card-body text-center p-4">
+                    <div class="feature-icon bg-gradient-primary rounded-circle d-inline-flex align-items-center justify-content-center mb-4" 
+                         style="width: 80px; height: 80px;">
+                        <i class="fas fa-brain fa-2x text-white"></i>
+                    </div>
+                    <h5 class="fw-bold mb-3">Advanced AI Detection</h5>
+                    <p class="text-muted mb-4">
+                        State-of-the-art DeepFace technology with 99.5% accuracy. 
+                        4096-dimensional feature vectors for precise matching.
+                    </p>
+                    <div class="progress mb-2" style="height: 8px;">
+                        <div class="progress-bar bg-success" style="width: 99.5%"></div>
+                    </div>
+                    <small class="text-muted">99.5% Accuracy Rate</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 col-md-6">
+            <div class="feature-card card h-100 border-0 shadow-lg">
+                <div class="card-body text-center p-4">
+                    <div class="feature-icon bg-gradient-primary rounded-circle d-inline-flex align-items-center justify-content-center mb-4" 
+                         style="width: 80px; height: 80px;">
+                        <i class="fas fa-video fa-2x text-white"></i>
+                    </div>
+                    <h5 class="fw-bold mb-3">Intelligent Video Processing</h5>
+                    <p class="text-muted mb-4">
+                        Generate condensed videos with only relevant segments. 
+                        Timestamp extraction and automated highlight creation.
+                    </p>
+                    <div class="d-flex justify-content-center gap-2">
+                        <span class="badge bg-info">Auto-Crop</span>
+                        <span class="badge bg-warning">Timestamps</span>
+                        <span class="badge bg-success">Highlights</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 col-md-6">
+            <div class="feature-card card h-100 border-0 shadow-lg">
+                <div class="card-body text-center p-4">
+                    <div class="feature-icon bg-gradient-primary rounded-circle d-inline-flex align-items-center justify-content-center mb-4" 
+                         style="width: 80px; height: 80px;">
+                        <i class="fas fa-chart-bar fa-2x text-white"></i>
+                    </div>
+                    <h5 class="fw-bold mb-3">Real-time Analytics</h5>
+                    <p class="text-muted mb-4">
+                        Comprehensive dashboards with detection statistics, 
+                        confidence scores, and detailed case management.
+                    </p>
+                    <div class="row text-center small">
+                        <div class="col-4">
+                            <div class="fw-bold text-primary">24/7</div>
+                            <div class="text-muted">Monitoring</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="fw-bold text-success">Real-time</div>
+                            <div class="text-muted">Updates</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="fw-bold text-info">Cloud</div>
+                            <div class="text-muted">Storage</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 col-md-6">
+            <div class="feature-card card h-100 border-0 shadow-lg">
+                <div class="card-body text-center p-4">
+                    <div class="feature-icon bg-gradient-primary rounded-circle d-inline-flex align-items-center justify-content-center mb-4" 
+                         style="width: 80px; height: 80px;">
+                        <i class="fas fa-shield-alt fa-2x text-white"></i>
+                    </div>
+                    <h5 class="fw-bold mb-3">Enterprise Security</h5>
+                    <p class="text-muted mb-4">
+                        Bank-level encryption, secure data handling, 
+                        and complete privacy protection for sensitive investigations.
+                    </p>
+                    <div class="d-flex justify-content-center gap-2">
+                        <span class="badge bg-success">Encrypted</span>
+                        <span class="badge bg-info">GDPR</span>
+                        <span class="badge bg-warning">SOC2</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 col-md-6">
+            <div class="feature-card card h-100 border-0 shadow-lg">
+                <div class="card-body text-center p-4">
+                    <div class="feature-icon bg-gradient-primary rounded-circle d-inline-flex align-items-center justify-content-center mb-4" 
+                         style="width: 80px; height: 80px;">
+                        <i class="fas fa-cogs fa-2x text-white"></i>
+                    </div>
+                    <h5 class="fw-bold mb-3">Automated Workflow</h5>
+                    <p class="text-muted mb-4">
+                        Background processing, automatic notifications, 
+                        and seamless integration with existing investigation tools.
+                    </p>
+                    <div class="progress mb-2" style="height: 4px;">
+                        <div class="progress-bar bg-info" style="width: 100%; animation: progress 2s ease-in-out infinite alternate;"></div>
+                    </div>
+                    <small class="text-muted">Always Processing</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Professional CTA Section -->
+<div class="py-5 mb-5" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 20px;">
+    <div class="container text-center text-white">
+        <h2 class="h1 fw-bold mb-3">Ready to Transform Your Investigations?</h2>
+        <p class="lead mb-4 opacity-90">
+            Join thousands of professionals using Detectify for faster, more accurate face recognition.
+        </p>
+        
+        {% if not user.is_authenticated %}
+        <div class="d-flex flex-wrap gap-3 justify-content-center">
+            <a href="{% url 'authentication:register' %}" class="btn btn-light btn-lg px-5 py-3">
+                <i class="fas fa-rocket me-2"></i>Get Started Free
+            </a>
+            <a href="#features" class="btn btn-outline-light btn-lg px-5 py-3">
+                <i class="fas fa-play me-2"></i>Watch Demo
+            </a>
+        </div>
+        {% else %}
+        <a href="{% url 'cases:create_case' %}" class="btn btn-light btn-lg px-5 py-3">
+            <i class="fas fa-plus-circle me-2"></i>Create Your First Case
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Technical Specifications -->
+<div class="container">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card border-0 shadow-lg">
+                <div class="card-header bg-gradient-primary text-white text-center">
+                    <h4 class="mb-0"><i class="fas fa-cogs me-2"></i>Technical Specifications</h4>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <h6 class="fw-bold text-primary mb-3">
+                                <i class="fas fa-image me-2"></i>Supported Image Formats
+                            </h6>
+                            <div class="d-flex flex-wrap gap-2">
+                                <span class="badge bg-success fs-6 px-3 py-2">PNG</span>
+                                <span class="badge bg-success fs-6 px-3 py-2">JPG</span>
+                                <span class="badge bg-success fs-6 px-3 py-2">JPEG</span>
+                            </div>
+                            <small class="text-muted mt-2 d-block">Max size: 50MB per image</small>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h6 class="fw-bold text-primary mb-3">
+                                <i class="fas fa-video me-2"></i>Supported Video Formats
+                            </h6>
+                            <div class="d-flex flex-wrap gap-2">
+                                <span class="badge bg-info fs-6 px-3 py-2">MP4</span>
+                                <span class="badge bg-info fs-6 px-3 py-2">AVI</span>
+                                <span class="badge bg-info fs-6 px-3 py-2">MKV</span>
+                                <span class="badge bg-info fs-6 px-3 py-2">MOV</span>
+                            </div>
+                            <small class="text-muted mt-2 d-block">Max size: 500MB per video</small>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <div class="row g-4">
+                        <div class="col-md-4 text-center">
+                            <div class="h3 fw-bold text-primary">0.25s</div>
+                            <small class="text-muted">Frame Sampling Rate</small>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div class="h3 fw-bold text-success">4096</div>
+                            <small class="text-muted">Feature Dimensions</small>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div class="h3 fw-bold text-info">99.5%</div>
+                            <small class="text-muted">Detection Accuracy</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@keyframes progress {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+.feature-card {
+    transition: all 0.3s ease;
+}
+
+.feature-card:hover {
+    transform: translateY(-8px);
+}
+
+.hero-section {
+    position: relative;
+    overflow: hidden;
+}
+
+.hero-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="50" cy="50" r="1" fill="%23667eea" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+    pointer-events: none;
+}
+</style>

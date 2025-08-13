@@ -1,0 +1,185 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Detectify{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between border-b border-gray-200 pb-4 mb-6">
+    <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
+    <div class="flex space-x-2">
+        <a href="{% url 'cases:create_case' %}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-amber-600 hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+            </svg>
+            New Case
+        </a>
+    </div>
+</div>
+
+<!-- Search and Filter -->
+<div class="mb-6 bg-white rounded-lg shadow-sm p-4">
+    <form method="GET" class="flex space-x-3">
+        <input type="text" name="search" placeholder="Search cases..." value="{{ search_query }}"
+               class="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm">
+        <select name="status" class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm">
+            <option value="">All Status</option>
+            <option value="created" {% if status_filter == 'created' %}selected{% endif %}>Created</option>
+            <option value="processing" {% if status_filter == 'processing' %}selected{% endif %}>Processing</option>
+            <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completed</option>
+            <option value="error" {% if status_filter == 'error' %}selected{% endif %}>Error</option>
+        </select>
+        <button type="submit" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+            Search
+        </button>
+    </form>
+</div>
+
+<!-- Cases List -->
+{% if cases %}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    {% for case in cases %}
+    <div class="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <h3 class="text-lg font-medium text-gray-900 truncate" title="{{ case.name }}">{{ case.name }}</h3>
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                {% if case.status == 'completed' %}bg-amber-100 text-amber-800
+                {% elif case.status == 'processing' %}bg-yellow-100 text-yellow-800
+                {% elif case.status == 'error' %}bg-red-100 text-red-800
+                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                {{ case.get_status_display }}
+            </span>
+        </div>
+        
+        <div class="px-6 py-4">
+            {% if case.description %}
+            <p class="text-sm text-gray-600 mb-4 line-clamp-2">{{ case.description|truncatewords:15 }}</p>
+            {% endif %}
+
+            <div class="grid grid-cols-3 gap-4 mb-4">
+                <div class="text-center">
+                    <div class="text-xl font-semibold text-gray-900">{{ case.suspect_count }}</div>
+                    <div class="text-xs text-gray-500">Suspects</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-xl font-semibold text-gray-900">{{ case.video_count }}</div>
+                    <div class="text-xs text-gray-500">Videos</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-xl font-semibold text-gray-900">{{ case.detection_count }}</div>
+                    <div class="text-xs text-gray-500">Detections</div>
+                </div>
+            </div>
+
+            <div class="flex items-center text-sm text-gray-500">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3a4 4 0 118 0v4m-4 6l-2 2m0 0l-2-2m2 2l2-2m-6 4h8"/>
+                </svg>
+                Created {{ case.created_at|date:"M d, Y" }}
+            </div>
+        </div>
+        
+        <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
+            <a href="{% url 'cases:case_detail' case.id %}" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-amber-600 hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                </svg>
+                View Details
+            </a>
+            {% if case.status == 'completed' %}
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                </svg>
+                Ready
+            </span>
+            {% elif case.status == 'processing' %}
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                <svg class="animate-spin w-3 h-3 mr-1" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Processing
+            </span>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Pagination -->
+{% if cases.has_other_pages %}
+<nav class="flex items-center justify-center mt-8" aria-label="Cases pagination">
+    <div class="flex space-x-1">
+        {% if cases.has_previous %}
+        <a href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if status_filter %}status={{ status_filter }}&{% endif %}page={{ cases.previous_page_number }}"
+           class="relative inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-l-md hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500">
+            Previous
+        </a>
+        {% endif %}
+
+        {% for num in cases.paginator.page_range %}
+        {% if cases.number == num %}
+        <span class="relative inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-amber-600 border border-amber-600">
+            {{ num }}
+        </span>
+        {% elif num > cases.number|add:'-3' and num < cases.number|add:'3' %}
+        <a href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if status_filter %}status={{ status_filter }}&{% endif %}page={{ num }}"
+           class="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500">
+            {{ num }}
+        </a>
+        {% endif %}
+        {% endfor %}
+
+        {% if cases.has_next %}
+        <a href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if status_filter %}status={{ status_filter }}&{% endif %}page={{ cases.next_page_number }}"
+           class="relative inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-r-md hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500">
+            Next
+        </a>
+        {% endif %}
+    </div>
+</nav>
+{% endif %}
+{% else %}
+<!-- Empty State -->
+<div class="text-center py-12 bg-white rounded-lg shadow-sm">
+    <svg class="mx-auto h-24 w-24 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+    </svg>
+    <h3 class="mt-4 text-lg font-medium text-gray-900">No Cases Found</h3>
+    <p class="mt-2 text-sm text-gray-500 max-w-sm mx-auto">
+        {% if search_query or status_filter %}
+        No cases match your current filters. <a href="{% url 'cases:dashboard' %}" class="text-amber-600 hover:text-amber-500">Clear filters</a>
+        {% else %}
+        Create your first case to get started with face detection.
+        {% endif %}
+    </p>
+    <div class="mt-6">
+        <a href="{% url 'cases:create_case' %}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-amber-600 hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+            </svg>
+            Create First Case
+        </a>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto-refresh page every 30 seconds if there are processing cases
+    {% if cases %}
+    {% for case in cases %}
+    {% if case.status == 'processing' %}
+    setTimeout(function () {
+        location.reload();
+    }, 3000);
+    break;
+    {% endif %}
+    {% endfor %}
+    {% endif %}
+</script>
+{% endblock %}

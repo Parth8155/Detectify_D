@@ -1,0 +1,231 @@
+{% extends 'base.html' %}
+
+{% block title %}Upload Suspect - {{ case.name }} - Detectify1{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <div>
+        <h1 class="h2">Upload Suspect Image</h1>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'cases:dashboard' %}">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'cases:case_detail' case.id %}">{{ case.name }}</a></li>
+                <li class="breadcrumb-item active">Upload Suspect</li>
+            </ol>
+        </nav>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{% url 'cases:case_detail' case.id %}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i>Back to Case
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Upload Form -->
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-user-plus me-2"></i>Add Suspect Image for Analysis</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data" id="suspectUploadForm">
+                    {% csrf_token %}
+                    
+                    <div class="mb-4">
+                        <label for="{{ form.image.id_for_label }}" class="form-label">
+                            <i class="fas fa-image me-2"></i>Select Suspect Image
+                        </label>
+                        {{ form.image }}
+                        {% if form.image.help_text %}
+                        <div class="form-text">{{ form.image.help_text }}</div>
+                        {% endif %}
+                        {% if form.image.errors %}
+                        <div class="text-danger small mt-1">{{ form.image.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Image Preview -->
+                    <div id="imagePreview" class="mb-4 d-none">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6><i class="fas fa-eye me-2"></i>Image Preview</h6>
+                            </div>
+                            <div class="card-body text-center">
+                                <img id="previewImg" src="" alt="Preview" class="img-fluid rounded" style="max-height: 300px; max-width: 100%;">
+                                <div class="mt-2">
+                                    <div id="imageInfo"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Upload Guidelines -->
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-lightbulb me-2"></i>Best Practices for Suspect Images</h6>
+                        <ul class="mb-0">
+                            <li><strong>Clear Face Visibility:</strong> Ensure the face is clearly visible and well-lit</li>
+                            <li><strong>Front-facing Photos:</strong> Direct face shots work best for recognition</li>
+                            <li><strong>High Resolution:</strong> Higher quality images improve detection accuracy</li>
+                            <li><strong>Single Person:</strong> Images with only one person work best</li>
+                            <li><strong>Supported Formats:</strong> PNG, JPG, JPEG (max 50MB)</li>
+                        </ul>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'cases:case_detail' case.id %}" class="btn btn-secondary">
+                            <i class="fas fa-times me-1"></i>Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary" id="uploadBtn" disabled>
+                            <i class="fas fa-upload me-1"></i>Upload Suspect
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Processing Information -->
+<div class="row justify-content-center mt-4">
+    <div class="col-md-8 col-lg-6">
+        <div class="card border-primary">
+            <div class="card-header bg-primary text-white">
+                <h6><i class="fas fa-brain me-2"></i>Face Recognition Process</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-1 me-2 text-primary"></i>Face Detection</h6>
+                        <p class="small text-muted">The system will automatically detect and extract faces from the uploaded image.</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-2 me-2 text-primary"></i>Feature Extraction</h6>
+                        <p class="small text-muted">A 4096-dimensional feature vector will be generated for accurate matching.</p>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-3 me-2 text-primary"></i>Database Storage</h6>
+                        <p class="small text-muted">The processed features will be stored securely for future video analysis.</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-4 me-2 text-primary"></i>Ready for Matching</h6>
+                        <p class="small text-muted">The suspect will be available for detection in uploaded videos.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('{{ form.image.id_for_label }}');
+    const imagePreview = document.getElementById('imagePreview');
+    const previewImg = document.getElementById('previewImg');
+    const imageInfo = document.getElementById('imageInfo');
+    const uploadForm = document.getElementById('suspectUploadForm');
+    const uploadBtn = document.getElementById('uploadBtn');
+
+    // File selection handler
+    fileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        
+        if (file) {
+            // Validate file type
+            const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+            if (!allowedTypes.includes(file.type)) {
+                showError('Invalid file type. Please select a JPG, JPEG, or PNG image.');
+                resetFileInput();
+                return;
+            }
+            
+            // Validate file size (50MB = 50 * 1024 * 1024 bytes)
+            const maxSize = 50 * 1024 * 1024;
+            if (file.size > maxSize) {
+                showError('File size exceeds 50MB limit. Please select a smaller image.');
+                resetFileInput();
+                return;
+            }
+            
+            // Show preview
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                previewImg.src = e.target.result;
+                imageInfo.innerHTML = `
+                    <strong>File:</strong> ${file.name}<br>
+                    <strong>Size:</strong> ${formatFileSize(file.size)}<br>
+                    <strong>Type:</strong> ${file.type}
+                `;
+                imagePreview.classList.remove('d-none');
+                uploadBtn.disabled = false;
+            };
+            reader.readAsDataURL(file);
+            
+        } else {
+            resetFileInput();
+        }
+    });
+
+    // Form submission handler
+    uploadForm.addEventListener('submit', function(e) {
+        const file = fileInput.files[0];
+        
+        if (!file) {
+            e.preventDefault();
+            showError('Please select an image file to upload.');
+            return;
+        }
+        
+        // Show loading state
+        uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Processing...';
+        uploadBtn.disabled = true;
+        
+        // Disable file input to prevent changes during upload
+        fileInput.disabled = true;
+    });
+
+    // Utility functions
+    function resetFileInput() {
+        fileInput.value = '';
+        imagePreview.classList.add('d-none');
+        uploadBtn.disabled = true;
+    }
+    
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+    
+    function showError(message) {
+        // Create or update error alert
+        let errorAlert = document.querySelector('.alert-danger');
+        if (!errorAlert) {
+            errorAlert = document.createElement('div');
+            errorAlert.className = 'alert alert-danger';
+            errorAlert.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + message;
+            uploadForm.insertBefore(errorAlert, uploadForm.firstChild);
+        } else {
+            errorAlert.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + message;
+        }
+        
+        // Remove error after 5 seconds
+        setTimeout(() => {
+            if (errorAlert.parentNode) {
+                errorAlert.parentNode.removeChild(errorAlert);
+            }
+        }, 5000);
+    }
+});
+</script>
+{% endblock %}
