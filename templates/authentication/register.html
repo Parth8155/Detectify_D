@@ -1,198 +1,211 @@
 {% extends 'base.html' %}
-
 {% block title %}Register - Detectify{% endblock %}
+{% block body_class %}auth-page{% endblock %}
 
-{% block content %}
-<div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-md w-full space-y-8">
-        <div>
-            <div class="mx-auto h-12 w-12 flex items-center justify-center bg-green-600 rounded-full">
-                <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+{% block auth_header %}
+<header class="bg-slate-900 text-white py-6 relative z-10">
+    <div class="max-w-7xl mx-auto px-4 flex items-center justify-between">
+        <div class="flex items-center">
+            <div class="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center mr-3">
+                <svg class="w-6 h-6 text-slate-900" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
                 </svg>
             </div>
-            <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
-                Create your account
-            </h2>
-            <p class="mt-2 text-center text-sm text-gray-600">
-                Join Detectify for advanced face recognition
-            </p>
+            <span class="text-2xl font-bold text-emerald-400">DETECTIFY</span>
         </div>
-        <div class="bg-white rounded-lg shadow-md p-8">
-            <form method="post" id="registerForm" class="space-y-6">
-                {% csrf_token %}
+        <nav class="flex space-x-4">
+            <a href="{% url 'authentication:login' %}" class="text-emerald-400 hover:text-emerald-300">Login</a>
+            <a href="{% url 'authentication:register' %}" class="text-emerald-400 hover:text-emerald-300">Register</a>
+        </nav>
+    </div>
+</header>
+{% endblock %}
 
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label for="{{ form.first_name.id_for_label }}" class="block text-sm font-medium text-gray-700">
-                            First Name
-                        </label>
-                        <div class="mt-1">
-                            <input type="text" name="{{ form.first_name.name }}" id="{{ form.first_name.id_for_label }}"
-                                   class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
-                                   value="{{ form.first_name.value|default:'' }}">
-                        </div>
-                        {% if form.first_name.errors %}
-                        <p class="mt-1 text-sm text-red-600">{{ form.first_name.errors.0 }}</p>
-                        {% endif %}
-                    </div>
+{% block main_header %}{% endblock %}
+{% block sidebar %}{% endblock %}
 
-                    <div>
-                        <label for="{{ form.last_name.id_for_label }}" class="block text-sm font-medium text-gray-700">
-                            Last Name
-                        </label>
-                        <div class="mt-1">
-                            <input type="text" name="{{ form.last_name.name }}" id="{{ form.last_name.id_for_label }}"
-                                   class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
-                                   value="{{ form.last_name.value|default:'' }}">
-                        </div>
-                        {% if form.last_name.errors %}
-                        <p class="mt-1 text-sm text-red-600">{{ form.last_name.errors.0 }}</p>
-                        {% endif %}
+{% block extra_css %}
+<style>
+    /* Match test.html background and hide global modern background */
+    body.auth-page { background-color: #0f172a; color: #fff; }
+    body.auth-page .modern-bg { display: none !important; }
+
+    .grid-pattern {
+        background-image: 
+            linear-gradient(rgba(0, 255, 136, 0.1) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(0, 255, 136, 0.1) 1px, transparent 1px);
+        background-size: 20px 20px;
+    }
+    .terminal-cursor::after { content: '_'; animation: blink 1s infinite; color: #10b981; }
+    @keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
+    .cyber-lines { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; pointer-events: none; }
+    .line { position: absolute; background: linear-gradient(90deg, transparent 0%, #10b981 50%, transparent 100%); opacity: 0.6; }
+    .line-horizontal { height: 1px; width: 100%; left: -100%; animation: moveHorizontal 8s linear infinite; }
+    .line-vertical { width: 1px; height: 100%; top: -100%; animation: moveVertical 10s linear infinite; }
+    .line:nth-child(1) { top: 20%; animation-delay: 0s; }
+    .line:nth-child(2) { top: 45%; animation-delay: 3s; }
+    .line:nth-child(3) { top: 70%; animation-delay: 6s; }
+    .line:nth-child(4) { left: 25%; animation-delay: 1s; }
+    .line:nth-child(5) { left: 60%; animation-delay: 4s; }
+    .line:nth-child(6) { left: 80%; animation-delay: 7s; }
+    @keyframes moveHorizontal { 0% { left: -100%; } 100% { left: 100%; } }
+    @keyframes moveVertical { 0% { top: -100%; } 100% { top: 100%; } }
+
+    /* Make Django form-control widgets look like Tailwind inputs */
+    .form-control {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        background-color: #0f172a; /* slate-900 */
+        border: 1px solid #334155; /* slate-700 */
+        border-radius: 0.375rem; /* rounded-md */
+        color: #e5e7eb; /* text-slate-200 */
+    }
+    .form-control::placeholder { color: #94a3b8; }
+    .form-control:focus {
+        outline: none;
+        border-color: transparent;
+        box-shadow: 0 0 0 2px #10b98155; /* ring-2 emerald */
+        background-color: #0b1220; /* slightly darker on focus */
+    }
+    label { color: #cbd5e1; }
+    .helptext { color: #94a3b8; font-size: 0.8rem; }
+    .errorlist { color: #f87171; font-size: 0.85rem; margin-top: 0.25rem; }
+</style>
+{% endblock %}
+{% block content %}
+{% block content %}
+<div class="min-h-screen flex relative z-10">
+    <!-- Left side - Cyber themed info panel -->
+    <div class="hidden lg:flex lg:flex-1 relative overflow-hidden">
+        <div class="absolute inset-0 bg-slate-900 grid-pattern">
+            <div class="absolute inset-0 bg-slate-900 bg-opacity-80"></div>
+            <div class="cyber-lines">
+                <div class="line line-horizontal"></div>
+                <div class="line line-horizontal"></div>
+                <div class="line line-horizontal"></div>
+                <div class="line line-vertical"></div>
+                <div class="line line-vertical"></div>
+                <div class="line line-vertical"></div>
+            </div>
+        </div>
+        <div class="relative z-10 flex flex-col justify-center px-12 py-20">
+            <div class="mb-8">
+                <div class="flex items-center mb-6">
+                    <div class="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center mr-3">
+                        <svg class="w-6 h-6 text-slate-900" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
+                        </svg>
                     </div>
+                    <span class="text-2xl font-bold text-emerald-400">DETECTIFY</span>
                 </div>
-
-                <div>
-                    <label for="{{ form.username.id_for_label }}" class="block text-sm font-medium text-gray-700">
-                        Username
-                    </label>
-                    <div class="mt-1">
-                        <input type="text" name="{{ form.username.name }}" id="{{ form.username.id_for_label }}"
-                               class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
-                               value="{{ form.username.value|default:'' }}" required>
-                    </div>
-                    {% if form.username.help_text %}
-                    <p class="mt-1 text-sm text-gray-500">{{ form.username.help_text }}</p>
-                    {% endif %}
-                    {% if form.username.errors %}
-                    <p class="mt-1 text-sm text-red-600">{{ form.username.errors.0 }}</p>
-                    {% endif %}
-                    <div id="usernameCheck" class="mt-1 text-sm"></div>
+                <h2 class="text-3xl font-bold text-white mb-4">Create Your Account</h2>
+                <p class="text-slate-300 text-lg leading-relaxed mb-8">
+                    Join Detectify to access advanced security analytics and incident response tools.
+                </p>
+            </div>
+            <div class="space-y-4">
+                <div class="flex items-center text-emerald-400">
+                    <svg class="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                    <span class="text-slate-300">Secure by design</span>
                 </div>
-
-                <div>
-                    <label for="{{ form.email.id_for_label }}" class="block text-sm font-medium text-gray-700">
-                        Email Address
-                    </label>
-                    <div class="mt-1">
-                        <input type="email" name="{{ form.email.name }}" id="{{ form.email.id_for_label }}"
-                               class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
-                               value="{{ form.email.value|default:'' }}" required>
-                    </div>
-                    {% if form.email.errors %}
-                    <p class="mt-1 text-sm text-red-600">{{ form.email.errors.0 }}</p>
-                    {% endif %}
+                <div class="flex items-center text-emerald-400">
+                    <svg class="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                    <span class="text-slate-300">Privacy-first</span>
                 </div>
-
-                <div class="grid grid-cols-2 gap-4">
+                <div class="flex items-center text-emerald-400">
+                    <svg class="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                    <span class="text-slate-300">Enterprise ready</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Right side - Register form -->
+    <div class="flex-1 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-20 xl:px-24 bg-slate-800 lg:bg-slate-800">
+        <div class="mx-auto w-full max-w-sm lg:w-96">
+            <!-- Mobile header -->
+            <div class="lg:hidden mb-8 text-center">
+                <div class="flex items-center justify-center mb-4">
+                    <div class="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center mr-2">
+                        <svg class="w-5 h-5 text-slate-900" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
+                        </svg>
+                    </div>
+                    <span class="text-xl font-bold text-emerald-400">DETECTIFY</span>
+                </div>
+            </div>
+            <div class="bg-slate-900 border border-slate-700 rounded-lg p-8">
+                <div class="mb-6">
+                    <h1 class="text-2xl font-bold text-white mb-2">Create account</h1>
+                    <p class="text-sm text-slate-400">
+                        Already have an account? 
+                        <a href="{% url 'authentication:login' %}" class="font-medium text-emerald-400 hover:text-emerald-300">Sign in</a>
+                    </p>
+                </div>
+                <form method="post" class="space-y-5">
+                    {% csrf_token %}
+                    {{ form.non_field_errors }}
                     <div>
-                        <label for="{{ form.password1.id_for_label }}" class="block text-sm font-medium text-gray-700">
-                            Password
-                        </label>
-                        <div class="mt-1">
-                            <input type="password" name="{{ form.password1.name }}" id="{{ form.password1.id_for_label }}"
-                                   class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
-                                   required>
-                        </div>
+                        <label for="{{ form.first_name.id_for_label }}" class="block text-sm font-medium mb-2">First name</label>
+                        {{ form.first_name }}
+                        {{ form.first_name.errors }}
+                    </div>
+                    <div>
+                        <label for="{{ form.last_name.id_for_label }}" class="block text-sm font-medium mb-2">Last name</label>
+                        {{ form.last_name }}
+                        {{ form.last_name.errors }}
+                    </div>
+                    <div>
+                        <label for="{{ form.username.id_for_label }}" class="block text-sm font-medium mb-2">Username</label>
+                        {{ form.username }}
+                        {{ form.username.errors }}
+                    </div>
+                    <div>
+                        <label for="{{ form.email.id_for_label }}" class="block text-sm font-medium mb-2">Email</label>
+                        {{ form.email }}
+                        {{ form.email.errors }}
+                    </div>
+                    <div>
+                        <label for="{{ form.password1.id_for_label }}" class="block text-sm font-medium mb-2">Password</label>
+                        {{ form.password1 }}
+                        {{ form.password1.errors }}
                         {% if form.password1.help_text %}
-                        <p class="mt-1 text-sm text-gray-500">{{ form.password1.help_text }}</p>
-                        {% endif %}
-                        {% if form.password1.errors %}
-                        <p class="mt-1 text-sm text-red-600">{{ form.password1.errors.0 }}</p>
+                        <p class="helptext mt-1">{{ form.password1.help_text|safe }}</p>
                         {% endif %}
                     </div>
-
                     <div>
-                        <label for="{{ form.password2.id_for_label }}" class="block text-sm font-medium text-gray-700">
-                            Confirm Password
-                        </label>
-                        <div class="mt-1">
-                            <input type="password" name="{{ form.password2.name }}" id="{{ form.password2.id_for_label }}"
-                                   class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
-                                   required>
-                        </div>
-                        {% if form.password2.errors %}
-                        <p class="mt-1 text-sm text-red-600">{{ form.password2.errors.0 }}</p>
-                        {% endif %}
-                        <div id="passwordMatch" class="mt-1 text-sm"></div>
+                        <label for="{{ form.password2.id_for_label }}" class="block text-sm font-medium mb-2">Confirm password</label>
+                        {{ form.password2 }}
+                        {{ form.password2.errors }}
                     </div>
-                </div>
-
-                <div>
-                    <button type="submit" class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
-                        <span class="absolute left-0 inset-y-0 flex items-center pl-3">
-                            <svg class="h-5 w-5 text-green-500 group-hover:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                            </svg>
-                        </span>
-                        Create Account
+                    <button type="submit" class="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-slate-900 bg-emerald-500 hover:bg-emerald-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 focus:ring-offset-slate-900 transition-colors">
+                        Create account
                     </button>
-                </div>
-
-                <div class="border-t border-gray-200 pt-6">
-                    <div class="text-center">
-                        <p class="text-sm text-gray-600">Already have an account?</p>
-                        <a href="{% url 'authentication:login' %}" class="mt-2 inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
-                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
-                            </svg>
-                            Sign In
-                        </a>
+                </form>
+            </div>
+            <div class="mt-6 p-4 bg-slate-800 border border-slate-700 rounded-lg">
+                <div class="flex items-start">
+                    <svg class="w-5 h-5 text-yellow-400 mr-3 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                    </svg>
+                    <div>
+                        <p class="text-sm text-slate-300">Use a strong password and keep your credentials secure.</p>
                     </div>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
 </div>
-
+{% endblock %}
+{% block extra_js %}
 <script>
-    // Real-time username availability check and password validation
-    document.addEventListener('DOMContentLoaded', function () {
-        const usernameInput = document.getElementById('{{ form.username.id_for_label }}');
-        const usernameCheck = document.getElementById('usernameCheck');
-        const password1 = document.getElementById('{{ form.password1.id_for_label }}');
-        const password2 = document.getElementById('{{ form.password2.id_for_label }}');
-        const passwordMatch = document.getElementById('passwordMatch');
-
-        let timeoutId = null;
-
-        // Username availability check
-        if (usernameInput) {
-            usernameInput.addEventListener('input', function () {
-                clearTimeout(timeoutId);
-                const username = this.value.trim();
-
-                if (username.length < 3) {
-                    usernameCheck.innerHTML = '<span class="text-yellow-600">Username must be at least 3 characters</span>';
-                    return;
-                }
-
-                usernameCheck.innerHTML = '<span class="text-blue-600">Checking availability...</span>';
-
-                timeoutId = setTimeout(() => {
-                    // Simulated check - replace with actual API call
-                    usernameCheck.innerHTML = '<span class="text-green-600"><svg class="w-4 h-4 inline mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>Username available</span>';
-                }, 500);
-            });
-        }
-
-        // Password confirmation check
-        function checkPasswordMatch() {
-            if (password1.value && password2.value) {
-                if (password1.value === password2.value) {
-                    passwordMatch.innerHTML = '<span class="text-green-600"><svg class="w-4 h-4 inline mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>Passwords match</span>';
-                } else {
-                    passwordMatch.innerHTML = '<span class="text-red-600"><svg class="w-4 h-4 inline mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>Passwords do not match</span>';
-                }
-            } else {
-                passwordMatch.innerHTML = '';
-            }
-        }
-
-        if (password1 && password2) {
-            password1.addEventListener('input', checkPasswordMatch);
-            password2.addEventListener('input', checkPasswordMatch);
-        }
+    document.addEventListener('DOMContentLoaded', function(){
+        document.body.classList.add('auth-page');
     });
 </script>
 {% endblock %}

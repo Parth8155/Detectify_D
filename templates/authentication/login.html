@@ -1,79 +1,194 @@
 {% extends 'base.html' %}
-
 {% block title %}Login - Detectify{% endblock %}
 
+{% block auth_header %}
+<!-- Authentication header for auth pages -->
+<div></div>
+{% endblock %}
+
+{% block sidebar %}
+<!-- No sidebar on auth pages -->
+{% endblock %}
+
+{% block main_header %}
+<!-- No main header on auth pages -->
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Match test.html background */
+    body { background-color: #0f172a; color: #fff; }
+
+    .grid-pattern {
+        background-image: 
+            linear-gradient(rgba(0, 255, 136, 0.1) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(0, 255, 136, 0.1) 1px, transparent 1px);
+        background-size: 20px 20px;
+    }
+    .terminal-cursor::after { content: '_'; animation: blink 1s infinite; color: #10b981; }
+    @keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
+    .cyber-lines { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; pointer-events: none; }
+    .line { position: absolute; background: linear-gradient(90deg, transparent 0%, #10b981 50%, transparent 100%); opacity: 0.6; }
+    .line-horizontal { height: 1px; width: 100%; left: -100%; animation: moveHorizontal 8s linear infinite; }
+    .line-vertical { width: 1px; height: 100%; top: -100%; animation: moveVertical 10s linear infinite; }
+    .line:nth-child(1) { top: 20%; animation-delay: 0s; }
+    .line:nth-child(2) { top: 45%; animation-delay: 3s; }
+    .line:nth-child(3) { top: 70%; animation-delay: 6s; }
+    .line:nth-child(4) { left: 25%; animation-delay: 1s; }
+    .line:nth-child(5) { left: 60%; animation-delay: 4s; }
+    .line:nth-child(6) { left: 80%; animation-delay: 7s; }
+    @keyframes moveHorizontal { 0% { left: -100%; } 100% { left: 100%; } }
+    @keyframes moveVertical { 0% { top: -100%; } 100% { top: 100%; } }
+    .pulse-dot { position: absolute; width: 4px; height: 4px; background: #10b981; border-radius: 50%; animation: pulse 2s ease-in-out infinite; }
+    .dot-1 { top: 30%; left: 15%; animation-delay: 0s; }
+    .dot-2 { top: 60%; left: 85%; animation-delay: 1s; }
+    .dot-3 { top: 80%; left: 40%; animation-delay: 2s; }
+    @keyframes pulse { 0%, 100% { opacity: 0.3; transform: scale(1); } 50% { opacity: 1; transform: scale(1.5); box-shadow: 0 0 10px #10b981; } }
+</style>
+{% endblock %}
 {% block content %}
-<div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-md w-full space-y-8">
-        <div>
-            <div class="mx-auto h-12 w-12 flex items-center justify-center bg-blue-600 rounded-full">
-                <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
-                </svg>
+<div class="min-h-screen flex relative z-10">
+    <!-- Left side - Cyber themed info panel -->
+    <div class="hidden lg:flex lg:flex-1 relative overflow-hidden">
+        <div class="absolute inset-0 bg-slate-900 grid-pattern">
+            <div class="absolute inset-0 bg-slate-900 bg-opacity-80"></div>
+            <div class="cyber-lines">
+                <div class="line line-horizontal"></div>
+                <div class="line line-horizontal"></div>
+                <div class="line line-horizontal"></div>
+                <div class="line line-vertical"></div>
+                <div class="line line-vertical"></div>
+                <div class="line line-vertical"></div>
             </div>
-            <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
-                Sign in to your account
-            </h2>
-            <p class="mt-2 text-center text-sm text-gray-600">
-                Access your Detectify dashboard
-            </p>
+            <div class="pulse-dot dot-1"></div>
+            <div class="pulse-dot dot-2"></div>
+            <div class="pulse-dot dot-3"></div>
         </div>
-        <div class="bg-white rounded-lg shadow-md p-8">
-            <form method="post" class="space-y-6">
-                {% csrf_token %}
-
-                <div>
-                    <label for="{{ form.username.id_for_label }}" class="block text-sm font-medium text-gray-700">
-                        Username
-                    </label>
-                    <div class="mt-1">
-                        <input type="text" name="{{ form.username.name }}" id="{{ form.username.id_for_label }}" 
-                               class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                               value="{{ form.username.value|default:'' }}" required>
+        <div class="relative z-10 flex flex-col justify-center px-12 py-20">
+            <div class="mb-8">
+                <div class="flex items-center mb-6">
+                    <div class="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center mr-3">
+                        <svg class="w-6 h-6 text-slate-900" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
+                        </svg>
                     </div>
-                    {% if form.username.errors %}
-                    <p class="mt-1 text-sm text-red-600">{{ form.username.errors.0 }}</p>
-                    {% endif %}
+                    <span class="text-2xl font-bold text-emerald-400">DETECTIFY</span>
                 </div>
-
-                <div>
-                    <label for="{{ form.password.id_for_label }}" class="block text-sm font-medium text-gray-700">
-                        Password
-                    </label>
-                    <div class="mt-1">
-                        <input type="password" name="{{ form.password.name }}" id="{{ form.password.id_for_label }}"
-                               class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                               required>
+                <h2 class="text-3xl font-bold text-white mb-4">Security Operations Center</h2>
+                <p class="text-slate-300 text-lg leading-relaxed mb-8">
+                    Advanced threat detection and vulnerability assessment platform. 
+                    Protect your digital infrastructure with enterprise-grade security tools.
+                </p>
+            </div>
+            <div class="space-y-4">
+                <div class="flex items-center text-emerald-400">
+                    <svg class="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                    <span class="text-slate-300">Real-time threat monitoring</span>
+                </div>
+                <div class="flex items-center text-emerald-400">
+                    <svg class="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                    <span class="text-slate-300">Automated vulnerability scanning</span>
+                </div>
+                <div class="flex items-center text-emerald-400">
+                    <svg class="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                    <span class="text-slate-300">Compliance reporting</span>
+                </div>
+            </div>
+            <div class="mt-12 p-4 bg-slate-800 border border-slate-700 rounded-lg">
+                <div class="flex items-center mb-2">
+                    <div class="w-3 h-3 bg-emerald-400 rounded-full mr-2"></div>
+                    <span class="text-sm text-slate-400 font-mono">System Status</span>
+                </div>
+                <p class="text-emerald-400 font-mono text-sm terminal-cursor">All systems operational</p>
+            </div>
+        </div>
+    </div>
+    <!-- Right side - Login form -->
+    <div class="flex-1 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-20 xl:px-24 bg-slate-800 lg:bg-slate-800">
+        <div class="mx-auto w-full max-w-sm lg:w-96">
+            <!-- Mobile header -->
+            <div class="lg:hidden mb-8 text-center">
+                <div class="flex items-center justify-center mb-4">
+                    <div class="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center mr-2">
+                        <svg class="w-5 h-5 text-slate-900" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
+                        </svg>
                     </div>
-                    {% if form.password.errors %}
-                    <p class="mt-1 text-sm text-red-600">{{ form.password.errors.0 }}</p>
-                    {% endif %}
+                    <span class="text-xl font-bold text-emerald-400">DETECTIFY</span>
                 </div>
-
-                <div>
-                    <button type="submit" class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                        <span class="absolute left-0 inset-y-0 flex items-center pl-3">
-                            <svg class="h-5 w-5 text-blue-500 group-hover:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
+            </div>
+            <div class="bg-slate-900 border border-slate-700 rounded-lg p-8">
+                <div class="mb-6">
+                    <h1 class="text-2xl font-bold text-white mb-2">Access Control</h1>
+                    <p class="text-sm text-slate-400">
+                        New to the platform? 
+                        <a href="{% url 'authentication:register' %}" class="font-medium text-emerald-400 hover:text-emerald-300">Create account</a>
+                    </p>
+                </div>
+                <form method="post" class="space-y-5">
+                    {% csrf_token %}
+                    <div>
+                        <label for="{{ form.username.id_for_label }}" class="block text-sm font-medium text-slate-300 mb-2">Username</label>
+                        <input id="{{ form.username.id_for_label }}" name="{{ form.username.name }}" type="text" required 
+                            class="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-md text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                            placeholder="Enter your username" value="{{ form.username.value|default:'' }}" autocomplete="username">
+                        {% if form.username.errors %}
+                        <p class="mt-2 text-sm text-red-600 flex items-center">
+                            <svg class="h-4 w-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
                             </svg>
-                        </span>
-                        Sign in
+                            {{ form.username.errors.0 }}
+                        </p>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <label for="{{ form.password.id_for_label }}" class="block text-sm font-medium text-slate-300 mb-2">Password</label>
+                        <input id="{{ form.password.id_for_label }}" name="{{ form.password.name }}" type="password" required
+                            class="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-md text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                            placeholder="Enter your password" autocomplete="current-password">
+                        {% if form.password.errors %}
+                        <p class="mt-2 text-sm text-red-600 flex items-center">
+                            <svg class="h-4 w-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                            </svg>
+                            {{ form.password.errors.0 }}
+                        </p>
+                        {% endif %}
+                    </div>
+                    <!-- Remember + Recovery row like test.html -->
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <input id="remember_me" name="remember_me" type="checkbox" 
+                                   class="h-4 w-4 text-emerald-500 bg-slate-800 border-slate-600 rounded focus:ring-emerald-500 focus:ring-2">
+                            <label for="remember_me" class="ml-2 block text-sm text-slate-300">Remember session</label>
+                        </div>
+                        <div class="text-sm">
+                            <a href="#" class="font-medium text-emerald-400 hover:text-emerald-300">Recovery options</a>
+                        </div>
+                    </div>
+                    <button type="submit" class="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-slate-900 bg-emerald-500 hover:bg-emerald-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 focus:ring-offset-slate-900 transition-colors">
+                        Initialize Session
                     </button>
-                </div>
-
-                <div class="border-t border-gray-200 pt-6">
-                    <div class="text-center">
-                        <p class="text-sm text-gray-600">Don't have an account?</p>
-                        <a href="{% url 'authentication:register' %}" class="mt-2 inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                            </svg>
-                            Create Account
-                        </a>
+                </form>
+            </div>
+            <div class="mt-6 p-4 bg-slate-800 border border-slate-700 rounded-lg">
+                <div class="flex items-start">
+                    <svg class="w-5 h-5 text-yellow-400 mr-3 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                    </svg>
+                    <div>
+                        <p class="text-sm text-slate-300">This is a secure connection. All data is encrypted in transit and at rest.</p>
                     </div>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
 </div>
 {% endblock %}
+{% block extra_js %}{% endblock %}
