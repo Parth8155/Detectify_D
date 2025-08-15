@@ -25,6 +25,41 @@ from .realtime_processor import streaming_sessions, VideoStreamProcessor
 logger = logging.getLogger(__name__)
 
 
+def _get_suspect_data(case_id: int):
+    """Helper function to get suspect encodings and mapping for a case.
+    
+    Args:
+        case_id: Case ID
+        
+    Returns:
+        Tuple of (suspect_encodings, suspect_mapping)
+    """
+    try:
+        from ..cases.models import SuspectImage
+        import json
+        import numpy as np
+        
+        suspects = SuspectImage.objects.filter(case_id=case_id, processed=True)
+        suspect_encodings = []
+        suspect_mapping = {}
+        
+        for i, suspect in enumerate(suspects):
+            if suspect.face_encoding:
+                try:
+                    encoding = json.loads(suspect.face_encoding) if isinstance(suspect.face_encoding, str) else suspect.face_encoding
+                    suspect_encodings.append(np.array(encoding))
+                    suspect_mapping[i] = suspect
+                except Exception as e:
+                    logger.error(f"Error loading suspect encoding for suspect {suspect.id}: {e}")
+        
+        logger.info(f"Loaded {len(suspect_encodings)} suspect encodings for case {case_id}")
+        return suspect_encodings, suspect_mapping
+    
+    except Exception as e:
+        logger.error(f"Error loading suspect data for case {case_id}: {e}")
+        return [], {}
+
+
 def _mark_video_processed_sync(case_id: int, video_id: int):
     """Synchronously mark a VideoUpload as processed and update the Case status.
 
@@ -53,112 +88,6 @@ def _mark_video_processed_sync(case_id: int, video_id: int):
             logger.debug(f"_mark_video_processed_sync: video already marked processed id={video_id}")
     except Exception:
         logger.exception('Error marking video as processed')
-
-
-@login_required
-@require_http_methods(["GET"])
-def stream_video_mjpeg(request, case_id: int, video_id: int):
-    """Stream video with face detection using MJPEG format.
-    
-    Args:
-        request: Django request object
-        case_id: Case ID
-        video_id: Video ID
-        
-    Returns:
-        StreamingHttpResponse with MJPEG stream
-    """
-    try:
-        # Get video object
-        case = get_object_or_404(Case, id=case_id, user=request.user)
-        video = get_object_or_404(VideoUpload, id=video_id, case=case)
-        
-        # Write video binary data to a temporary file for processing
-        try:
-            temp_video_path = video.write_temp_file()
-        except Exception as e:
-            logger.error(f"Failed to write temp video file: {e}")
-            raise Http404("Video file not available")
-        
-        # Get streaming parameters
-        target_fps = int(request.GET.get('fps', 30))
-        quality = int(request.GET.get('quality', 80))
-        
-        # Validate parameters
-        target_fps = max(1, min(60, target_fps))
-        quality = max(10, min(100, quality))
-        
-        # Create session
-        session_id = f"mjpeg_{case_id}_{video_id}_{request.user.id}"
-        detection_model_path = os.path.join(settings.BASE_DIR, "face_detection_yunet_2023mar.onnx")
-        
-        processor = streaming_sessions.create_session(
-            session_id,
-            temp_video_path,
-            detection_model_path
-        )
-        
-        # Generate MJPEG stream
-        def generate():
-            try:
-                for frame_bytes in processor.generate_mjpeg_stream(target_fps, quality):
-                    yield frame_bytes
-            except Exception as e:
-                logger.error(f"MJPEG generation error: {e}")
-            finally:
-                try:
-                    streaming_sessions.remove_session(session_id)
-                    # Mark video processed when streaming finishes
-                    try:
-                        _mark_video_processed_sync(case_id, video_id)
-                        # Start backend batch processing to persist detection results
-                        try:
-                            from ..cases.models import SuspectImage
-                            from .tasks import process_video_task
-
-                            suspect_ids = list(SuspectImage.objects.filter(case_id=case_id, processed=True).values_list('id', flat=True))
-                            if suspect_ids:
-                                # Prefer Celery async call if available
-                                try:
-                                    if hasattr(process_video_task, 'delay'):
-                                        process_video_task.delay(video_id, suspect_ids)
-                                    else:
-                                        process_video_task(video_id, suspect_ids)
-                                except Exception:
-                                    # Fallback to synchronous call
-                                    process_video_task(video_id, suspect_ids)
-                        except Exception:
-                            logger.exception('Failed to enqueue batch processing after MJPEG stream')
-                    except Exception:
-                        logger.exception('Failed to mark video processed after MJPEG stream')
-                finally:
-                    # cleanup temporary file
-                    try:
-                        if os.path.exists(temp_video_path):
-                            os.remove(temp_video_path)
-                    except Exception:
-                        logger.exception("Failed to remove temp video file")
-        
-        response = StreamingHttpResponse(
-            generate(),
-            content_type='multipart/x-mixed-replace; boundary=frame'
-        )
-        response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-        response['Pragma'] = 'no-cache'
-        response['Expires'] = '0'
-        
-        return response
-        
-    except Exception as e:
-            logger.exception(f"MJPEG streaming error: {e}")
-            # Attempt cleanup if temp file exists
-            try:
-                if 'temp_video_path' in locals() and os.path.exists(temp_video_path):
-                    os.remove(temp_video_path)
-            except Exception:
-                logger.exception("Failed to remove temp video file after error")
-            return HttpResponse("Streaming error", status=500)
-
 
 @login_required
 @require_http_methods(["GET"])
@@ -289,6 +218,14 @@ class VideoStreamConsumer(AsyncWebsocketConsumer):
             loop = asyncio.get_event_loop()
             try:
                 temp_video_path = await loop.run_in_executor(None, video.write_temp_file)
+                # Get suspect data for recognition
+                suspect_encodings, suspect_mapping = await loop.run_in_executor(
+                    None, _get_suspect_data, self.case_id
+                )
+                # Store for use in streaming
+                self.suspect_encodings = suspect_encodings
+                self.suspect_mapping = suspect_mapping
+                self.video = video
             except Exception as e:
                 logger.error(f"Failed to write temp video file for WebSocket: {e}")
                 await self.close()
@@ -392,7 +329,10 @@ class VideoStreamConsumer(AsyncWebsocketConsumer):
                 streaming_sessions.create_session,
                 self.session_id,
                 video_path,
-                detection_model_path
+                detection_model_path,
+                self.video,  # Pass video object for saving DetectionResult
+                self.suspect_encodings,
+                self.suspect_mapping
             )
             
             # Stream frames
@@ -420,39 +360,36 @@ class VideoStreamConsumer(AsyncWebsocketConsumer):
                 'message': 'Video processing completed'
             }))
 
+            # Save any pending detections to database before marking complete
+            def _save_detections():
+                try:
+                    processor = streaming_sessions.get_session(self.session_id)
+                    if processor and hasattr(processor, 'save_pending_detections'):
+                        saved_count = processor.save_pending_detections()
+                        logger.info(f"Saved {saved_count} pending detections for video {self.video_id}")
+                        return saved_count
+                    return 0
+                except Exception as e:
+                    logger.error(f"Error saving pending detections: {e}")
+                    return 0
+
+            # Save detections in executor to avoid async issues
+            try:
+                saved_count = await asyncio.get_event_loop().run_in_executor(None, _save_detections)
+                logger.info(f"Detection save completed: {saved_count} detections saved")
+            except Exception:
+                logger.exception('Failed to save pending detections after WebSocket stream')
+
             # Mark video processed in DB (run in executor so it's synchronous DB call)
             try:
                 await asyncio.get_event_loop().run_in_executor(None, _mark_video_processed_sync, int(self.case_id), int(self.video_id))
             except Exception:
                 logger.exception('Failed to mark video processed after WebSocket stream')
 
-            # Start backend batch processing to persist detection results (run in executor)
-            try:
-                def _start_batch():
-                    try:
-                        from ..cases.models import SuspectImage
-                        from .tasks import process_video_task
-
-                        suspect_ids = list(SuspectImage.objects.filter(case_id=self.case_id, processed=True).values_list('id', flat=True))
-                        logger.info(f"WebSocket: Found {len(suspect_ids)} processed suspects for case {self.case_id}")
-                        
-                        if suspect_ids:
-                            logger.info(f"WebSocket: Starting batch processing for video {self.video_id} with suspects {suspect_ids}")
-                            if hasattr(process_video_task, 'delay'):
-                                task = process_video_task.delay(int(self.video_id), suspect_ids)
-                                logger.info(f"WebSocket: Batch processing task started with ID: {getattr(task, 'id', 'unknown')}")
-                            else:
-                                logger.info(f"WebSocket: Running batch processing synchronously")
-                                result = process_video_task(int(self.video_id), suspect_ids)
-                                logger.info(f"WebSocket: Batch processing completed: {result}")
-                        else:
-                            logger.warning(f"WebSocket: No processed suspects found for case {self.case_id}, skipping batch processing")
-                    except Exception:
-                        logger.exception('Failed to enqueue batch processing after WebSocket stream')
-
-                await asyncio.get_event_loop().run_in_executor(None, _start_batch)
-            except Exception:
-                logger.exception('Failed to start batch processing after WebSocket stream')
+            # Note: We don't need to run additional batch processing here since 
+            # DetectionResult objects are already being saved during streaming
+            # This makes the results immediately available on the results page
+            logger.info(f"WebSocket streaming completed for video {self.video_id}. Results should be immediately available.")
             
         except asyncio.CancelledError:
             logger.info("Streaming task cancelled")

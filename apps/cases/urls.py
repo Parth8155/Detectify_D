@@ -32,7 +32,6 @@ urlpatterns = [
     path('api/<int:case_id>/status/', views.api_case_status, name='api_case_status'),
     
     # Real-time streaming endpoints
-    path('<int:case_id>/video/<int:video_id>/stream/', views.stream_video_mjpeg, name='stream_video_mjpeg'),
     path('<int:case_id>/video/<int:video_id>/stream/page/', views.stream_video_page, name='stream_video_page'),
     path('<int:case_id>/video/<int:video_id>/stream/stats/', views.stream_stats, name='stream_stats'),
     path('<int:case_id>/video/<int:video_id>/stream/stop/', views.stop_stream, name='stop_stream'),

@@ -203,13 +203,6 @@
             <!-- Controls -->
             <div class="mt-4 flex items-center justify-between">
                 <div class="flex gap-3">
-                    <button id="startMjpegBtn" class="control-btn btn-primary">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h8m-9-4V8a2 2 0 012-2h8a2 2 0 012 2v2M7 12a2 2 0 100 4 2 2 0 000-4z"/>
-                        </svg>
-                        Start MJPEG Stream
-                    </button>
-                    
                     <button id="startWsBtn" class="control-btn btn-primary">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
@@ -270,6 +263,11 @@
                 <div class="stat-item">
                     <span class="text-slate-400">Total Faces</span>
                     <span id="totalFaces" class="text-white font-medium">0</span>
+                </div>
+                
+                <div class="stat-item">
+                    <span class="text-slate-400">Suspects Found</span>
+                    <span id="totalSuspects" class="text-white font-medium text-red-400">0</span>
                 </div>
                 
                 <div class="stat-item">
@@ -337,6 +335,7 @@
     const currentFrame = document.getElementById('currentFrame');
     const streamFps = document.getElementById('streamFps');
     const totalFaces = document.getElementById('totalFaces');
+    const totalSuspects = document.getElementById('totalSuspects');
     const avgFaces = document.getElementById('avgFaces');
     const processingTime = document.getElementById('processingTime');
     
@@ -345,7 +344,6 @@
     const fpsSelect = document.getElementById('fpsSelect');
     
     // URLs
-    const mjpegUrl = `{% url 'cases:stream_video_mjpeg' case.id video.id %}`;
     const statsUrl = `{% url 'cases:stream_stats' case.id video.id %}`;
     const stopUrl = `{% url 'cases:stop_stream' case.id video.id %}`;
     // Results page URL - redirect here when processing completes
@@ -377,19 +375,16 @@
     }
     
     function hideAllStreams() {
-        mjpegStream.classList.add('hidden');
         wsStream.classList.add('hidden');
         streamPlaceholder.classList.remove('hidden');
     }
     
     function showMjpegStream() {
-        mjpegStream.classList.remove('hidden');
         wsStream.classList.add('hidden');
         streamPlaceholder.classList.add('hidden');
     }
     
     function showWebSocketStream() {
-        mjpegStream.classList.add('hidden');
         wsStream.classList.remove('hidden');
         streamPlaceholder.classList.add('hidden');
     }
@@ -407,31 +402,11 @@
         currentFrame.textContent = `${stats.processed_frames} / ${stats.total_frames}`;
         streamFps.textContent = stats.fps.toFixed(1);
         totalFaces.textContent = stats.faces_detected;
+        totalSuspects.textContent = stats.suspects_detected || 0;
         avgFaces.textContent = stats.avg_faces_per_frame.toFixed(1);
         processingTime.textContent = `${(stats.processing_time * 1000).toFixed(0)}ms`;
     }
     
-    // MJPEG Streaming
-    function startMjpegStream() {
-        const quality = qualitySelect.value;
-        const fps = fpsSelect.value;
-        const url = `${mjpegUrl}?quality=${quality}&fps=${fps}`;
-        
-        mjpegStream.src = url;
-        mjpegStream.onload = () => {
-            showMjpegStream();
-            updateStreamingStatus('Live - MJPEG', true);
-            updateControls(true);
-            currentStream = 'mjpeg';
-            showMessage('MJPEG streaming started');
-            startStatsPolling();
-        };
-        
-        mjpegStream.onerror = () => {
-            showMessage('Failed to start MJPEG stream', 'error');
-            stopStream();
-        };
-    }
     
     // WebSocket Streaming
     function startWebSocketStream() {
@@ -473,6 +448,16 @@
                 
                 // Update face counter
                 faceCount.textContent = data.faces_detected || data.faces || (data.detection_data && data.detection_data.faces_detected) || '0';
+                
+                // Update face counter to show suspects in red if any detected
+                const suspects = data.suspects_detected || 0;
+                if (suspects > 0) {
+                    faceCounter.className = 'face-counter bg-red-600';
+                    faceCount.textContent = `${data.faces_detected || 0} faces, ${suspects} SUSPECTS`;
+                } else {
+                    faceCounter.className = 'face-counter';
+                    faceCount.textContent = `${data.faces_detected || 0} faces`;
+                }
                 
                 // Update stats
                 if (data.stats) {
@@ -581,8 +566,6 @@
         return cookieValue;
     }
     
-    // Event listeners
-    startMjpegBtn.addEventListener('click', startMjpegStream);
     startWsBtn.addEventListener('click', startWebSocketStream);
     stopBtn.addEventListener('click', stopStream);
 
@@ -594,17 +577,18 @@
             fetch(processingStatusUrl)
                 .then(r => r.json())
                 .then(data => {
-                    // If server reports processed, redirect
-                    if (data && data.status === 'completed') {
+                    // If server reports results_ready or there are detections, redirect
+                    if (data && (data.results_ready === true || (data.detection_count && data.detection_count > 0))) {
                         window.location.href = resultsUrl;
                         return;
                     }
 
+                    // If video.status is completed but results not yet persisted, keep polling until timeout
                     if (Date.now() - start < timeoutMs) {
                         setTimeout(checkOnce, intervalMs);
                     } else {
                         // Timeout: redirect anyway but inform user results may still be processing
-                        showMessage('Processing is still running on the server. Redirecting to results page; data may appear shortly.', 'info');
+                        showMessage('Processing appears complete but results are still being persisted on the server. Redirecting to results page; data may appear shortly.', 'info');
                         window.location.href = resultsUrl;
                     }
                 })

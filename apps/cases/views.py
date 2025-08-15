@@ -13,7 +13,7 @@ from .models import Case, SuspectImage, VideoUpload, DetectionResult, ProcessedV
 from .forms import CaseForm, SuspectImageForm, VideoUploadForm
 
 # Import streaming views
-from ..media_processing.streaming_views import stream_video_mjpeg, stream_stats, stop_stream
+from ..media_processing.streaming_views import stream_stats, stop_stream
 
 
 # --- REVERT TO SYNC VIEWS ---
@@ -411,8 +411,10 @@ def video_processing_status(request, case_id, video_id):
         progress_percent = 100
         
         # Get detection count
-        detection_count = DetectionResult.objects.filter(video=video).count()
-        message = f'Processing completed! Found {detection_count} detections.'
+    detection_count = DetectionResult.objects.filter(video=video).count()
+    # Consider results ready when there are detections persisted or a processed summary exists
+    results_ready = detection_count > 0 or ProcessedVideo.objects.filter(original_video=video).exists()
+    message = f'Processing completed! Found {detection_count} detections.'
     
     return JsonResponse({
         'status': status,
@@ -422,9 +424,12 @@ def video_processing_status(request, case_id, video_id):
         'total_frames': total_frames,
         'frame_timestamp': round(frame_timestamp, 1),
         'detections_found': detections_found,
-        'duration': video.duration,
-        'processing_started': video.processing_started_at.isoformat() if video.processing_started_at else None,
-        'processing_completed': video.processing_completed_at.isoformat() if video.processing_completed_at else None,
+    'duration': video.duration,
+    'processing_started': video.processing_started_at.isoformat() if video.processing_started_at else None,
+    'processing_completed': video.processing_completed_at.isoformat() if video.processing_completed_at else None,
+    # Extra fields to help the frontend know when results are persisted
+    'detection_count': detection_count,
+    'results_ready': results_ready if video.processed else False,
     })
 @login_required
 def video_results(request, case_id, video_id):
@@ -556,13 +561,22 @@ def people_detection_results(request, case_id, video_id):
     """View people detection results for a video"""
     case = get_object_or_404(Case, id=case_id, user=request.user)
     video = get_object_or_404(VideoUpload, id=video_id, case=case)
-    
-    detections = PeopleDetection.objects.filter(video=video).order_by('timestamp')
-    
-    # Calculate statistics
-    total_detections = detections.count()
-    total_people_detected = sum(d.person_count for d in detections)
-    max_people_in_frame = max([d.person_count for d in detections]) if detections else 0
+    # PeopleDetection model may not be available in some branches/environments
+    try:
+        from .models import PeopleDetection
+        detections = PeopleDetection.objects.filter(video=video).order_by('timestamp')
+    except Exception:
+        detections = []
+
+    # Calculate statistics (works for both QuerySet and list fallback)
+    if hasattr(detections, 'count'):
+        total_detections = detections.count()
+        total_people_detected = sum(d.person_count for d in detections)
+        max_people_in_frame = max([d.person_count for d in detections]) if total_detections else 0
+    else:
+        total_detections = len(detections)
+        total_people_detected = sum(d.person_count for d in detections) if detections else 0
+        max_people_in_frame = max([d.person_count for d in detections]) if detections else 0
     
     # Group detections by time intervals (e.g., every 10 seconds)
     timeline_data = []

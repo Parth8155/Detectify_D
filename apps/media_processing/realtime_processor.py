@@ -13,7 +13,11 @@ import logging
 from io import BytesIO
 from PIL import Image
 import json
-from typing import Generator, Optional, Tuple, Any
+import tempfile
+import os
+from typing import Generator, Optional, Tuple, Any, List, Dict
+from django.utils import timezone
+from channels.db import database_sync_to_async
 
 logger = logging.getLogger(__name__)
 
@@ -145,22 +149,53 @@ class FaceDetector:
 class VideoStreamProcessor:
     """Real-time video processor with face detection and streaming."""
     
-    def __init__(self, video_path: str, detection_model_path: str = "face_detection_yunet_2023mar.onnx"):
+    def __init__(self, video_path: str, detection_model_path: str = "face_detection_yunet_2023mar.onnx", 
+                 video_obj=None, suspect_encodings: List[np.ndarray] = None, suspect_mapping: Dict = None):
         """Initialize the video processor.
         
         Args:
             video_path: Path to the video file
             detection_model_path: Path to the face detection model
+            video_obj: VideoUpload model instance for saving DetectionResult
+            suspect_encodings: List of suspect face encodings for recognition
+            suspect_mapping: Mapping from encoding index to suspect object
         """
         self.video_path = video_path
         self.face_detector = FaceDetector(detection_model_path)
         self.cap = None
         self.is_streaming = False
         self.frame_queue = queue.Queue(maxsize=30)  # Buffer for frames
+        
+        # Recognition and database saving
+        self.video_obj = video_obj
+        self.suspect_encodings = suspect_encodings or []
+        self.suspect_mapping = suspect_mapping or {}
+        self.confidence_threshold = 0.85
+        
+        # Store detections to save in batch (avoid async/sync issues)
+        self.pending_detections = []
+        self.detection_lock = threading.Lock()
+        
+        # Store detection timestamps for summary video creation
+        self.detection_timestamps = []
+        
+        # Import here to avoid circular imports
+        try:
+            from .deepface_client import DeepFaceClient
+            from ..cases.models import DetectionResult, ProcessedVideo
+            self.face_client = DeepFaceClient() if suspect_encodings else None
+            self.DetectionResult = DetectionResult
+            self.ProcessedVideo = ProcessedVideo
+        except ImportError:
+            self.face_client = None
+            self.DetectionResult = None
+            self.ProcessedVideo = None
+        
         self.stats = {
             'total_frames': 0,
             'processed_frames': 0,
             'faces_detected': 0,
+            'suspects_detected': 0,  # New stat for suspect detections
             'fps': 0,
             'processing_time': 0
         }
@@ -170,6 +205,8 @@ class VideoStreamProcessor:
         # Run a full-resolution detection every N processed frames for accuracy
         # Set to 1 to always run full-res (slow). Default 5 means full detection every 5th processed frame.
         self._full_res_every = 5
+        # Save detections to DB every N frames to avoid losing data
+        self._save_interval = 50  # Save every 50 processed frames
         self._lock = threading.Lock()
     
     def _initialize_video_capture(self) -> bool:
@@ -191,14 +228,14 @@ class VideoStreamProcessor:
             logger.error(f"Video initialization error: {e}")
             return False
     
-    def _process_frame(self, frame: np.ndarray) -> Tuple[np.ndarray, int]:
-        """Process a single frame with face detection.
+    def _process_frame(self, frame: np.ndarray) -> Tuple[np.ndarray, int, int]:
+        """Process a single frame with face detection and recognition.
         
         Args:
             frame: Input frame
             
         Returns:
-            Tuple of (processed_frame, number_of_faces_detected)
+            Tuple of (processed_frame, number_of_faces_detected, suspects_detected)
         """
         start_time = time.time()
         
@@ -219,11 +256,23 @@ class VideoStreamProcessor:
         except Exception:
             faces = self.face_detector.detect_faces(frame)
         
-        # Draw rectangles around detected faces
+        # Draw rectangles around detected faces and perform recognition
         faces_count = 0
+        suspects_detected = 0
+        
+        # Calculate current timestamp for this frame
+        if self.fps > 0:
+            current_timestamp = self.stats['processed_frames'] / (self.fps / self._frame_skip)
+        else:
+            current_timestamp = time.time()
+        
         for face in faces:
             # Extract bounding box coordinates
             x, y, w, h = int(face[0]), int(face[1]), int(face[2]), int(face[3])
+            
+            # Skip very small faces (likely false positives)
+            if w < 40 or h < 40:
+                continue
             
             # Draw green rectangle around face
             cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
@@ -234,15 +283,194 @@ class VideoStreamProcessor:
                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
             
             faces_count += 1
+            
+            # Perform suspect recognition if we have suspect encodings
+            if self.suspect_encodings and self.face_client and self.video_obj:
+                try:
+                    suspect_detected = self._recognize_suspect_in_face(frame, x, y, w, h, current_timestamp)
+                    if suspect_detected:
+                        suspects_detected += 1
+                        # Draw red rectangle for recognized suspects
+                        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 3)
+                        cv2.putText(frame, 'SUSPECT', (x, y - 30), 
+                                   cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                except Exception as e:
+                    logger.error(f"Error in suspect recognition: {e}")
         
         # Update statistics
         processing_time = time.time() - start_time
         with self._lock:
             self.stats['processed_frames'] += 1
             self.stats['faces_detected'] += faces_count
+            self.stats['suspects_detected'] += suspects_detected
             self.stats['processing_time'] = processing_time
+            
+            # Periodically save pending detections to avoid data loss
+            if (self.stats['processed_frames'] % self._save_interval == 0 and 
+                self.pending_detections and self.DetectionResult):
+                try:
+                    # Save in a separate thread to avoid blocking
+                    import threading
+                    save_thread = threading.Thread(target=self.save_pending_detections)
+                    save_thread.daemon = True
+                    save_thread.start()
+                except Exception as e:
+                    logger.error(f"Error starting periodic save thread: {e}")
         
-        return frame, faces_count
+        return frame, faces_count, suspects_detected
+    
+    def _recognize_suspect_in_face(self, frame: np.ndarray, x: int, y: int, w: int, h: int, timestamp: float) -> bool:
+        """Recognize if a detected face matches any suspect.
+        
+        Args:
+            frame: Full frame image
+            x, y, w, h: Bounding box coordinates
+            timestamp: Current timestamp in video
+            
+        Returns:
+            True if suspect is recognized and saved to database
+        """
+        try:
+            # Extract face region
+            face_region = frame[y:y+h, x:x+w]
+            if face_region.size == 0:
+                return False
+            
+            # Save face to temporary file for recognition
+            temp_dir = tempfile.gettempdir()
+            temp_face_path = os.path.join(temp_dir, f"temp_face_stream_{timestamp}_{x}_{y}.jpg")
+            cv2.imwrite(temp_face_path, face_region)
+            
+            try:
+                # Extract features from detected face
+                face_encoding = self.face_client.extract_features(temp_face_path)
+                
+                # Compare with all suspect encodings
+                for i, suspect_encoding in enumerate(self.suspect_encodings):
+                    similarity = self.face_client.compare_faces(face_encoding, suspect_encoding)
+                    
+                    if similarity >= self.confidence_threshold:
+                        # Found a match! Store detection data for batch saving
+                        suspect = self.suspect_mapping.get(i)
+                        if suspect and self.DetectionResult:
+                            detection_data = {
+                                'video': self.video_obj,
+                                'suspect': suspect,
+                                'timestamp': timestamp,
+                                'confidence': similarity,
+                                'frame_number': self.stats['processed_frames'],
+                                'bounding_box': (x, y, w, h)
+                            }
+                            
+                            # Add to pending detections (thread-safe)
+                            with self.detection_lock:
+                                self.pending_detections.append(detection_data)
+                                # Also store timestamp for summary video
+                                self.detection_timestamps.append(timestamp)
+                            
+                            logger.info(f"Queued detection: suspect {suspect.id} at {timestamp:.2f}s with confidence {similarity:.3f}")
+                            return True
+                
+                return False
+                
+            finally:
+                # Clean up temporary file
+                if os.path.exists(temp_face_path):
+                    os.remove(temp_face_path)
+                    
+        except Exception as e:
+            logger.error(f"Error in face recognition: {e}")
+            return False
+    
+    def save_pending_detections(self):
+        """Save all pending detections to database in batch."""
+        if not self.pending_detections or not self.DetectionResult:
+            return 0
+            
+        try:
+            with self.detection_lock:
+                if not self.pending_detections:
+                    return 0
+                    
+                # Create DetectionResult objects
+                detection_objects = []
+                for detection_data in self.pending_detections:
+                    detection_obj = self.DetectionResult(**detection_data)
+                    detection_objects.append(detection_obj)
+                
+                # Bulk create all detections
+                created_count = len(self.DetectionResult.objects.bulk_create(detection_objects))
+                logger.info(f"Saved {created_count} detection results to database")
+                
+                # Clear pending detections
+                self.pending_detections.clear()
+                return created_count
+                
+        except Exception as e:
+            logger.error(f"Error saving pending detections: {e}")
+            return 0
+    
+    def create_summary_video(self):
+        """Create summary video from detection timestamps."""
+        if not self.detection_timestamps or not self.ProcessedVideo:
+            logger.info("No detections found or ProcessedVideo model not available")
+            return None
+            
+        try:
+            # Import video processor for summary creation
+            from .video_processor import VideoProcessor
+            import os
+            from django.conf import settings
+            
+            video_processor = VideoProcessor()
+            
+            # Get unique timestamps (remove duplicates and sort)
+            unique_timestamps = sorted(list(set(self.detection_timestamps)))
+            logger.info(f"Creating summary video with {len(unique_timestamps)} detection timestamps")
+            
+            # Generate output path for summary video
+            case = self.video_obj.case
+            video_name = f"video_{self.video_obj.id}"
+            summary_filename = f"{video_name}_summary.mp4"
+            summary_path = os.path.join('processed', 'videos', summary_filename)
+            full_summary_path = os.path.join('media', summary_path)
+            
+            # Ensure directory exists
+            os.makedirs(os.path.dirname(full_summary_path), exist_ok=True)
+            
+            # Create summary video using video_processor
+            success = video_processor.create_summary_video(
+                self.video_path,
+                unique_timestamps,
+                full_summary_path
+            )
+            
+            if success:
+                logger.info(f"Summary video created successfully at {full_summary_path}")
+                
+                # Create ProcessedVideo record and save to database
+                processed_video = self.ProcessedVideo(
+                    case=case,
+                    original_video=self.video_obj,
+                    total_detections=len(unique_timestamps),
+                    summary_duration=len(unique_timestamps) * (video_processor.buffer_before + video_processor.buffer_after)
+                )
+                
+                # Save processed video data to database
+                processed_video.save_processed_from_file(full_summary_path, summary_filename)
+                processed_video.save()
+                
+                logger.info(f"ProcessedVideo record created with ID {processed_video.id}")
+                return processed_video
+            else:
+                logger.error("Failed to create summary video")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error creating summary video: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
     
     def _encode_frame_jpeg(self, frame: np.ndarray, quality: int = 80) -> bytes:
         """Encode frame as JPEG bytes.
@@ -270,78 +498,7 @@ class VideoStreamProcessor:
         """
         jpeg_bytes = self._encode_frame_jpeg(frame, quality)
         return base64.b64encode(jpeg_bytes).decode('utf-8')
-    
-    def generate_mjpeg_stream(self, target_fps: int = 30, quality: int = 80) -> Generator[bytes, None, None]:
-        """Generate MJPEG stream for HTTP streaming.
-        
-        Args:
-            target_fps: Target frames per second
-            quality: JPEG quality (1-100)
-            
-        Yields:
-            MJPEG frame bytes
-        """
-        if not self._initialize_video_capture():
-            return
-        
-        self.is_streaming = True
-        frame_interval = 1.0 / target_fps
-        last_frame_time = time.time()
-
-        # Compute skip factor: number of source frames to skip between processed frames
-        try:
-            if self.fps and target_fps > 0:
-                self._frame_skip = max(1, int(round(self.fps / float(target_fps))))
-            else:
-                self._frame_skip = 1
-        except Exception:
-            self._frame_skip = 1
-
-        # Effective total frames after skipping (used for progress)
-        if self.stats['total_frames'] > 0 and self._frame_skip > 1:
-            self._effective_total_frames = max(1, int(self.stats['total_frames'] / self._frame_skip))
-        else:
-            self._effective_total_frames = self.stats['total_frames']
-        
-        try:
-            while self.is_streaming and self.cap.isOpened():
-                ret, frame = self.cap.read()
-                if not ret:
-                    logger.info("Video processing completed")
-                    break
-                
-                # Process frame with face detection
-                processed_frame, faces_count = self._process_frame(frame)
-                
-                # Encode frame as JPEG
-                jpeg_bytes = self._encode_frame_jpeg(processed_frame, quality)
-                
-                # Create MJPEG frame
-                yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + jpeg_bytes + b'\r\n')
-                
-                # Skip frames efficiently to reduce processing load
-                if self._frame_skip > 1:
-                    # we've already read one frame (the processed one), grab the next (skip-1) frames
-                    for _ in range(self._frame_skip - 1):
-                        # grab() moves to next frame without decoding (faster than read)
-                        try:
-                            self.cap.grab()
-                        except Exception:
-                            break
-
-                # Control frame rate
-                current_time = time.time()
-                elapsed = current_time - last_frame_time
-                if elapsed < frame_interval:
-                    time.sleep(frame_interval - elapsed)
-                last_frame_time = time.time()
-                
-        except Exception as e:
-            logger.error(f"MJPEG streaming error: {e}")
-        finally:
-            self.cleanup()
-    
+   
     def generate_websocket_frames(self, target_fps: int = 30, quality: int = 80) -> Generator[dict, None, None]:
         """Generate frames for WebSocket streaming.
         
@@ -382,7 +539,7 @@ class VideoStreamProcessor:
                     break
                 
                 # Process frame with face detection
-                processed_frame, faces_count = self._process_frame(frame)
+                processed_frame, faces_count, suspects_count = self._process_frame(frame)
                 
                 # Encode frame as base64
                 frame_b64 = self._encode_frame_base64(processed_frame, quality)
@@ -394,6 +551,7 @@ class VideoStreamProcessor:
                     'timestamp': time.time(),
                     'frame_number': self.stats['processed_frames'],
                     'faces_detected': faces_count,
+                    'suspects_detected': suspects_count,  # Add suspect count
                     'stats': self.get_stats()
                 }
                 
@@ -417,6 +575,42 @@ class VideoStreamProcessor:
         except Exception as e:
             logger.error(f"WebSocket streaming error: {e}")
         finally:
+            # Save any pending detections before cleanup
+            if hasattr(self, 'save_pending_detections'):
+                try:
+                    self.save_pending_detections()
+                except Exception as e:
+                    logger.error(f"Error saving pending detections during cleanup: {e}")
+            
+            # Create summary video after processing is complete
+            if hasattr(self, 'video_obj') and self.video_obj:
+                try:
+                    logger.info("Creating summary video...")
+                    # Use threading to avoid async context issues
+                    import threading
+                    
+                    def create_summary_and_complete():
+                        try:
+                            processed_video = self.create_summary_video()
+                            if processed_video:
+                                logger.info(f"Summary video creation successful")
+                            
+                            # Mark video processing as complete
+                            self.video_obj.status = 'completed'
+                            self.video_obj.save()
+                            
+                            logger.info(f"Video processing completed. Total detections: {len(getattr(self, 'detection_timestamps', []))}")
+                        except Exception as e:
+                            logger.error(f"Error in summary video creation thread: {e}")
+                    
+                    # Run summary creation in separate thread to avoid async context issues
+                    summary_thread = threading.Thread(target=create_summary_and_complete)
+                    summary_thread.start()
+                    summary_thread.join()  # Wait for completion
+                    
+                except Exception as e:
+                    logger.error(f"Error creating summary video during cleanup: {e}")
+            
             self.cleanup()
     
     def get_stats(self) -> dict:
@@ -431,9 +625,16 @@ class VideoStreamProcessor:
             if stats['processed_frames'] > 0 and total_ref > 0:
                 stats['progress'] = (stats['processed_frames'] / total_ref) * 100
                 stats['avg_faces_per_frame'] = stats['faces_detected'] / stats['processed_frames']
+                stats['avg_suspects_per_frame'] = stats['suspects_detected'] / stats['processed_frames']
             else:
                 stats['progress'] = 0
                 stats['avg_faces_per_frame'] = 0
+                stats['avg_suspects_per_frame'] = 0
+            
+            # Add pending detection count
+            with self.detection_lock:
+                stats['pending_detections'] = len(self.pending_detections)
+            
             return stats
     
     def stop_streaming(self):
@@ -456,13 +657,18 @@ class StreamingSession:
         self._lock = threading.Lock()
     
     def create_session(self, session_id: str, video_path: str, 
-                      detection_model_path: str = "face_detection_yunet_2023mar.onnx") -> VideoStreamProcessor:
+                      detection_model_path: str = "face_detection_yunet_2023mar.onnx",
+                      video_obj=None, suspect_encodings: List[np.ndarray] = None, 
+                      suspect_mapping: Dict = None) -> VideoStreamProcessor:
         """Create a new streaming session.
         
         Args:
             session_id: Unique session identifier
             video_path: Path to the video file
             detection_model_path: Path to the face detection model
+            video_obj: VideoUpload model instance for saving DetectionResult
+            suspect_encodings: List of suspect face encodings for recognition
+            suspect_mapping: Mapping from encoding index to suspect object
             
         Returns:
             VideoStreamProcessor instance
@@ -471,7 +677,13 @@ class StreamingSession:
             if session_id in self.active_sessions:
                 self.active_sessions[session_id].cleanup()
             
-            processor = VideoStreamProcessor(video_path, detection_model_path)
+            processor = VideoStreamProcessor(
+                video_path, 
+                detection_model_path,
+                video_obj=video_obj,
+                suspect_encodings=suspect_encodings,
+                suspect_mapping=suspect_mapping
+            )
             self.active_sessions[session_id] = processor
             return processor
     
