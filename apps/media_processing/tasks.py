@@ -12,7 +12,7 @@ import json
 import traceback
 import numpy as np
 
-from apps.cases.models import VideoUpload, SuspectImage, DetectionResult, ProcessedVideo, Case, PeopleDetection
+from apps.cases.models import VideoUpload, SuspectImage, DetectionResult, ProcessedVideo, Case
 from .video_processor import VideoProcessor
 from .deepface_client import DeepFaceClient
 from django.conf import settings
@@ -82,7 +82,6 @@ def process_video_task(self, video_id: int, suspect_ids: List[int]):
                             os.remove(temp_image_path)
                 except Exception as e:
                     print(f"Error processing suspect {suspect.id}: {str(e)}")
-                    continue
         
         if not suspect_encodings:
             raise ValueError("No valid suspect encodings found")
@@ -94,8 +93,6 @@ def process_video_task(self, video_id: int, suspect_ids: List[int]):
         # Write video data to temporary file
         with open(video_path, 'wb') as f:
             f.write(video.get_video_data())
-        
-        # Process video with progress tracking
         
         # Get video metadata for progress calculation
         metadata = video_processor.extract_video_metadata(video_path)
@@ -133,80 +130,68 @@ def process_video_task(self, video_id: int, suspect_ids: List[int]):
             video_path, 
             suspect_encodings, 
             progress_callback=progress_callback
-        )            # Save detection results
-            detection_objects = []
-            for detection in detections:
-                suspect = suspect_mapping.get(detection['suspect_index'])
-                if suspect:
-                    # Convert bounding_box values to Python int for JSON serialization
-                    bbox = tuple(int(v) for v in detection['bounding_box'])
-                    detection_obj = DetectionResult(
-                        video=video,
-                        suspect=suspect,
-                        timestamp=detection['timestamp'],
-                        confidence=detection['confidence'],
-                        frame_number=detection['frame_number'],
-                        bounding_box=bbox
-                    )
-                    detection_objects.append(detection_obj)
-            
-            # Bulk create detection results
-            DetectionResult.objects.bulk_create(detection_objects)
-            
-            # Create summary video if detections found
-            summary_video_path = None
-            if detections:
-                timestamps = [d['timestamp'] for d in detections]
-                
-                # Generate output path
-                video_name = f"video_{video.id}"
-                summary_filename = f"{video_name}_summary.mp4"
-                summary_path = os.path.join('processed', 'videos', summary_filename)
-                full_summary_path = os.path.join('media', summary_path)
-                
-                # Ensure directory exists
-                os.makedirs(os.path.dirname(full_summary_path), exist_ok=True)
-                
-                # Create summary video
-                success = video_processor.create_summary_video(
-                    video_path, 
-                    timestamps, 
-                    full_summary_path
+        )
+        # Save detection results
+        detection_objects = []
+        for detection in detections:
+            suspect = suspect_mapping.get(detection['suspect_index'])
+            if suspect:
+                # Convert bounding_box values to Python int for JSON serialization
+                bbox = tuple(int(v) for v in detection['bounding_box'])
+                detection_obj = DetectionResult(
+                    video=video,
+                    suspect=suspect,
+                    timestamp=detection['timestamp'],
+                    confidence=detection['confidence'],
+                    frame_number=detection['frame_number'],
+                    bounding_box=bbox
                 )
-                
-                if success:
-                    # Create ProcessedVideo record and save to database
-                    with open(full_summary_path, 'rb') as f:
-                        processed_video = ProcessedVideo(
-                            case=case,
-                            original_video=video,
-                            total_detections=len(detections),
-                            summary_duration=len(timestamps) * (video_processor.buffer_before + video_processor.buffer_after)
-                        )
-                        processed_video.save_video_from_file(f, 'mp4')
-                        processed_video.save()
-                    
-                    summary_video_path = f"/cases/video/{processed_video.id}/"
-            
-            # Update completion status
-            video.processed = True
-            video.processing_completed_at = timezone.now()
-            video.save()
-            
-            case.status = 'completed'
-            case.save()
-            
-            result = {
-                'status': 'completed',
-                'video_id': video_id,
-                'total_detections': len(detections),
-                'suspects_found': len(set(d['suspect_index'] for d in detections)),
-                'summary_video_url': summary_video_path,
-                'processing_time': (timezone.now() - video.processing_started_at).total_seconds()
-            }
-            
-            return result
-            
+                detection_objects.append(detection_obj)
+        # Bulk create detection results
+        DetectionResult.objects.bulk_create(detection_objects)
+        # Create summary video if detections found
+        summary_video_path = None
+        if detections:
+            timestamps = [d['timestamp'] for d in detections]
+            # Generate output path
+            video_name = f"video_{video.id}"
+            summary_filename = f"{video_name}_summary.mp4"
+            summary_path = os.path.join('processed', 'videos', summary_filename)
+            full_summary_path = os.path.join('media', summary_path)
+            # Ensure directory exists
+            os.makedirs(os.path.dirname(full_summary_path), exist_ok=True)
+            # Create summary video
+            success = video_processor.create_summary_video(
+                video_path, 
+                timestamps, 
+                full_summary_path
+            )
+            if success:
+                # Create ProcessedVideo record and save to database
+                processed_video = ProcessedVideo(
+                    case=case,
+                    original_video=video,
+                    total_detections=len(detections),
+                    summary_duration=len(timestamps) * (video_processor.buffer_before + video_processor.buffer_after)
+                )
+                processed_video.save_processed_from_file(full_summary_path, 'processed_video.mp4')
+                processed_video.save()
+                summary_video_path = f"/cases/video/{processed_video.id}/"
+        # Update completion status
+        video.processed = True
+        video.processing_completed_at = timezone.now()
+        video.save()
+        case.status = 'completed'
+        case.save()
+        result = {
+            'status': 'completed',
+            'video_id': video_id,
+            'total_detections': len(detections),
+            'suspects_found': len(set(d['suspect_index'] for d in detections)),
+            'summary_video_url': summary_video_path,
+            'processing_time': (timezone.now() - video.processing_started_at).total_seconds()
+        }
+        return result
     except Exception as exc:
         # Handle task failure
         try:
@@ -222,6 +207,12 @@ def process_video_task(self, video_id: int, suspect_ids: List[int]):
         print(error_msg)
         
         # Retry the task
+        # Clean up temporary video file(s)
+        try:
+            if 'video_path' in locals() and os.path.exists(video_path):
+                os.remove(video_path)
+        except Exception:
+            pass
         if self.request.retries < self.max_retries:
             raise self.retry(countdown=60, exc=exc)
         
@@ -265,10 +256,7 @@ def process_suspect_image_task(suspect_id: int):
                     x, y, w, h = bbox
                     print(f'Face {i+1}: bbox=({x},{y},{w},{h}), confidence={conf:.3f}')
                     face_crop = image[y:y+h+20, x:x+w+20]
-                    if face_crop.size > 0:
-                        cv2.imshow(f'Suspect Face {i+1}', face_crop)
-                        cv2.waitKey(0)
-                        cv2.destroyWindow(f'Suspect Face {i+1}')
+        
 
             if detected_faces:
                 largest_face = max(detected_faces, key=lambda x: x[0][2] * x[0][3])
@@ -440,163 +428,3 @@ def extract_video_metadata_task(video_id: int):
             'video_id': video_id
         }
 
-
-@shared_task(bind=True, max_retries=3)
-def detect_people_in_video_task(self, video_id: int):
-    """
-    Detect and count people in video with timestamps
-    
-    Args:
-        video_id (int): ID of VideoUpload instance
-        
-    Returns:
-        Dict: Processing results with people count and timeline
-    """
-    try:
-        video = VideoUpload.objects.get(id=video_id)
-        
-        # Update processing status
-        video.processing_started_at = timezone.now()
-        video.save()
-        
-        case = video.case
-        case.status = 'processing'
-        case.save()
-        
-        # Initialize processors
-        video_processor = VideoProcessor()
-        face_client = DeepFaceClient()
-        
-        # Create temporary file from database-stored video
-        temp_dir = tempfile.gettempdir()
-        video_path = os.path.join(temp_dir, f"temp_video_{video.id}.{video.video_type}")
-        
-        # Write video data to temporary file
-        with open(video_path, 'wb') as f:
-            f.write(video.get_video_data())
-        
-        # Process video for people detection
-        
-        # Get video metadata for progress calculation
-        metadata = video_processor.extract_video_metadata(video_path)
-        total_frames = metadata.get('frame_count', 0)
-        fps = metadata.get('fps', 30)
-        
-            # Create progress callback
-            def progress_callback(current_frame, frame_timestamp, people_found):
-                progress_percent = (current_frame / total_frames * 100) if total_frames > 0 else 0
-                
-                try:
-                    if not getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False) and self.request.id:
-                        self.update_state(
-                            state='PROGRESS',
-                            meta={
-                                'current_frame': current_frame,
-                                'total_frames': total_frames,
-                                'progress': round(progress_percent, 1),
-                                'timestamp': frame_timestamp,
-                                'people_found': people_found,
-                                'fps': fps,
-                                'status': 'processing_people'
-                            }
-                        )
-                    else:
-                        print(f"Processing frame {current_frame}/{total_frames} ({progress_percent:.1f}%) - {people_found} people at {frame_timestamp:.2f}s")
-                except Exception as e:
-                    print(f"Processing frame {current_frame}/{total_frames} ({progress_percent:.1f}%) - {people_found} people at {frame_timestamp:.2f}s")
-            
-            # Analyze video for people
-            people_detections = video_processor.analyze_video_for_people(
-                video_path,
-                progress_callback=progress_callback
-            )
-            
-            # Save people detection results
-            detection_objects = []
-            person_tracking = {}  # Simple person tracking across frames
-            next_person_id = 1
-            
-            for detection in people_detections:
-                timestamp = detection['timestamp']
-                frame_number = detection['frame_number']
-                bounding_boxes = detection['bounding_boxes']
-                confidence_scores = detection['confidence_scores']
-                person_count = len(bounding_boxes)
-                
-                # Simple person ID assignment (could be improved with tracking algorithms)
-                person_ids = []
-                for bbox in bounding_boxes:
-                    # For now, assign sequential IDs (in a real system, you'd track across frames)
-                    person_ids.append(next_person_id)
-                    next_person_id += 1
-                
-                detection_obj = PeopleDetection(
-                    video=video,
-                    timestamp=timestamp,
-                    frame_number=frame_number,
-                    person_count=person_count,
-                    bounding_boxes=bounding_boxes,
-                    confidence_scores=confidence_scores,
-                    person_ids=person_ids
-                )
-                detection_objects.append(detection_obj)
-            
-            # Bulk create detection results
-            PeopleDetection.objects.bulk_create(detection_objects)
-            
-            # Update completion status
-            video.processing_completed_at = timezone.now()
-            video.save()
-            
-            case.status = 'completed'
-            case.save()
-            
-            # Calculate statistics
-            total_people_detected = sum(d.person_count for d in detection_objects)
-            max_people_in_frame = max([d.person_count for d in detection_objects]) if detection_objects else 0
-            
-            result = {
-                'status': 'completed',
-                'video_id': video_id,
-                'total_detections': len(detection_objects),
-                'total_people_detected': total_people_detected,
-                'max_people_in_frame': max_people_in_frame,
-                'unique_timestamps': len(set(d.timestamp for d in detection_objects)),
-                'processing_time': (timezone.now() - video.processing_started_at).total_seconds()
-            }
-            
-            return result
-        
-    except Exception as exc:
-        # Handle task failure
-        try:
-            video = VideoUpload.objects.get(id=video_id)
-            case = video.case
-            case.status = 'error'
-            case.save()
-        except:
-            pass
-        
-        # Log the error
-        error_msg = f"People detection task failed: {str(exc)}\n{traceback.format_exc()}"
-        print(error_msg)
-        
-        # Retry the task
-        if self.request.retries < self.max_retries:
-            raise self.retry(countdown=60, exc=exc)
-        
-        return {
-            'status': 'error',
-            'error': str(exc),
-            'video_id': video_id
-        }
-    finally:
-        # Clean up temporary video file
-        if 'video_path' in locals() and os.path.exists(video_path):
-            os.remove(video_path)
-        
-        return {
-            'status': 'error',
-            'error': str(exc),
-            'video_id': video_id
-        }

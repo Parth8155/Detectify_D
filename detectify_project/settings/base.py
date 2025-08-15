@@ -21,7 +21,7 @@ SECRET_KEY = "django-insecure-ou^hw117qc!km-#2)4myh-t2hdxn)av%us#1uyhhy@i#f-%!oi
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
 
 
 # Application definition
@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     # Third-party apps
     "rest_framework",
     "django_celery_results",
+    "channels",
     
     # Local apps
     "apps.authentication.apps.AuthenticationConfig",
@@ -74,6 +75,14 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "detectify_project.wsgi.application"
+ASGI_APPLICATION = "detectify_project.asgi.application"
+
+# Channels settings
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer"
+    }
+}
 
 
 # Database
@@ -149,8 +158,10 @@ LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/'
 
 # Celery Configuration (overridden in development.py)
-CELERY_BROKER_URL = 'memory://'  # Default broker for development
+CELERY_TASK_ALWAYS_EAGER = True
+CELERY_TASK_EAGER_PROPAGATES = True
 CELERY_RESULT_BACKEND = 'django-db'
+
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'

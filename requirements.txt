@@ -10,6 +10,10 @@ psycopg2-binary==2.9.9
 celery==5.3.4
 django-celery-results==2.5.1
 
+# WebSocket support
+channels==4.0.0
+channels-redis==4.1.0
+
 # Face recognition and image processing
 deepface==0.0.79
 opencv-python==4.8.1.78

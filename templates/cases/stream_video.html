@@ -1,0 +1,638 @@
+{% extends 'base.html' %}
+
+{% block main_header %}{% endblock %}
+{% block sidebar %}{% endblock %}
+
+{% block title %}Real-time Video Stream - {{ case.name }} - Detectify{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Dark cybersecurity theme */
+    body { background-color: #0f172a; color: #e2e8f0; }
+    
+    .stream-container {
+        background: #1e293b;
+        border: 1px solid #334155;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    .stream-video {
+        width: 100%;
+        height: auto;
+        max-height: 600px;
+        background: #000;
+        display: block;
+    }
+    
+    .stats-panel {
+        background: #0f172a;
+        border: 1px solid #334155;
+        border-radius: 8px;
+        padding: 1rem;
+    }
+    
+    .stat-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #334155;
+    }
+    
+    .stat-item:last-child {
+        border-bottom: none;
+    }
+    
+    .progress-bar {
+        width: 100%;
+        height: 8px;
+        background: #334155;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #10b981, #16a34a);
+        transition: width 0.3s ease;
+    }
+    
+    .control-btn {
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 6px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .btn-primary {
+        background: #3b82f6;
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background: #2563eb;
+    }
+    
+    .btn-danger {
+        background: #dc2626;
+        color: white;
+    }
+    
+    .btn-danger:hover {
+        background: #b91c1c;
+    }
+    
+    .btn-secondary {
+        background: #6b7280;
+        color: white;
+    }
+    
+    .btn-secondary:hover {
+        background: #4b5563;
+    }
+    
+    .streaming-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+    
+    .streaming-live {
+        background: #059669;
+        color: white;
+    }
+    
+    .streaming-stopped {
+        background: #6b7280;
+        color: white;
+    }
+    
+    .pulse {
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+    
+    .face-counter {
+        background: #dc2626;
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+    
+    .error-message {
+        background: #dc2626;
+        color: white;
+        padding: 1rem;
+        border-radius: 6px;
+        margin: 1rem 0;
+    }
+    
+    .info-message {
+        background: #3b82f6;
+        color: white;
+        padding: 1rem;
+        border-radius: 6px;
+        margin: 1rem 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-3xl font-bold text-white">Real-time Video Analysis</h1>
+            <p class="text-slate-400 mt-1">{{ case.name }} - {{ video.video_file.name }}</p>
+        </div>
+        <div class="flex gap-3">
+            <a href="{% url 'cases:case_detail' case.id %}" 
+               class="control-btn btn-secondary">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+                Back to Case
+            </a>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <!-- Video Stream -->
+        <div class="lg:col-span-3">
+            <div class="stream-container">
+                <!-- MJPEG Stream -->
+                <img id="mjpegStream" 
+                     class="stream-video hidden" 
+                     alt="Video Stream">
+                
+                <!-- WebSocket Stream -->
+                <canvas id="wsStream" 
+                        class="stream-video hidden"
+                        width="640" 
+                        height="480"></canvas>
+                
+                <!-- Placeholder -->
+                <div id="streamPlaceholder" 
+                     class="stream-video flex items-center justify-center bg-slate-800 h-96">
+                    <div class="text-center">
+                        <svg class="w-16 h-16 mx-auto mb-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                  d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                        </svg>
+                        <p class="text-slate-400">Click "Start Streaming" to begin face detection</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Controls -->
+            <div class="mt-4 flex items-center justify-between">
+                <div class="flex gap-3">
+                    <button id="startMjpegBtn" class="control-btn btn-primary">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h8m-9-4V8a2 2 0 012-2h8a2 2 0 012 2v2M7 12a2 2 0 100 4 2 2 0 000-4z"/>
+                        </svg>
+                        Start MJPEG Stream
+                    </button>
+                    
+                    <button id="startWsBtn" class="control-btn btn-primary">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                        Start WebSocket Stream
+                    </button>
+                    
+                    <button id="stopBtn" class="control-btn btn-danger hidden">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10h6v4H9z"/>
+                        </svg>
+                        Stop Stream
+                    </button>
+                </div>
+                
+                <div class="flex items-center gap-4">
+                    <!-- Streaming Status -->
+                    <div id="streamingStatus" class="streaming-indicator streaming-stopped">
+                        <div class="w-2 h-2 bg-current rounded-full"></div>
+                        <span>Stopped</span>
+                    </div>
+                    
+                    <!-- Face Counter -->
+                    <div id="faceCounter" class="face-counter">
+                        <span id="faceCount">0</span> faces
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Messages -->
+            <div id="messageContainer"></div>
+        </div>
+        
+        <!-- Statistics Panel -->
+        <div class="lg:col-span-1">
+            <div class="stats-panel">
+                <h3 class="text-lg font-semibold text-white mb-4">Statistics</h3>
+                
+                <div class="stat-item">
+                    <span class="text-slate-400">Progress</span>
+                    <span id="progressPercent" class="text-white font-medium">0%</span>
+                </div>
+                <div class="progress-bar mb-4">
+                    <div id="progressBar" class="progress-fill" style="width: 0%"></div>
+                </div>
+                
+                <div class="stat-item">
+                    <span class="text-slate-400">Frame</span>
+                    <span id="currentFrame" class="text-white font-medium">0 / 0</span>
+                </div>
+                
+                <div class="stat-item">
+                    <span class="text-slate-400">FPS</span>
+                    <span id="streamFps" class="text-white font-medium">0</span>
+                </div>
+                
+                <div class="stat-item">
+                    <span class="text-slate-400">Total Faces</span>
+                    <span id="totalFaces" class="text-white font-medium">0</span>
+                </div>
+                
+                <div class="stat-item">
+                    <span class="text-slate-400">Avg Faces/Frame</span>
+                    <span id="avgFaces" class="text-white font-medium">0.0</span>
+                </div>
+                
+                <div class="stat-item">
+                    <span class="text-slate-400">Processing Time</span>
+                    <span id="processingTime" class="text-white font-medium">0ms</span>
+                </div>
+            </div>
+            
+            <!-- Stream Settings -->
+            <div class="stats-panel mt-4">
+                <h3 class="text-lg font-semibold text-white mb-4">Settings</h3>
+                
+                <div class="mb-4">
+                    <label class="block text-slate-400 text-sm mb-2">Quality</label>
+                    <select id="qualitySelect" class="w-full p-2 bg-slate-700 border border-slate-600 rounded text-white">
+                        <option value="60">Low (60%)</option>
+                        <option value="80" selected>Medium (80%)</option>
+                        <option value="95">High (95%)</option>
+                    </select>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-slate-400 text-sm mb-2">Target FPS</label>
+                    <select id="fpsSelect" class="w-full p-2 bg-slate-700 border border-slate-600 rounded text-white">
+                        <option value="15">15 FPS</option>
+                        <option value="24">24 FPS</option>
+                        <option value="30" selected>30 FPS</option>
+                        <option value="60">60 FPS</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Global variables
+    let currentStream = null;
+    let websocket = null;
+    let isStreaming = false;
+    let statsInterval = null;
+    
+    // DOM elements
+    const mjpegStream = document.getElementById('mjpegStream');
+    const wsStream = document.getElementById('wsStream');
+    const streamPlaceholder = document.getElementById('streamPlaceholder');
+    const startMjpegBtn = document.getElementById('startMjpegBtn');
+    const startWsBtn = document.getElementById('startWsBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const streamingStatus = document.getElementById('streamingStatus');
+    const messageContainer = document.getElementById('messageContainer');
+    const faceCounter = document.getElementById('faceCounter');
+    const faceCount = document.getElementById('faceCount');
+    
+    // Statistics elements
+    const progressPercent = document.getElementById('progressPercent');
+    const progressBar = document.getElementById('progressBar');
+    const currentFrame = document.getElementById('currentFrame');
+    const streamFps = document.getElementById('streamFps');
+    const totalFaces = document.getElementById('totalFaces');
+    const avgFaces = document.getElementById('avgFaces');
+    const processingTime = document.getElementById('processingTime');
+    
+    // Settings elements
+    const qualitySelect = document.getElementById('qualitySelect');
+    const fpsSelect = document.getElementById('fpsSelect');
+    
+    // URLs
+    const mjpegUrl = `{% url 'cases:stream_video_mjpeg' case.id video.id %}`;
+    const statsUrl = `{% url 'cases:stream_stats' case.id video.id %}`;
+    const stopUrl = `{% url 'cases:stop_stream' case.id video.id %}`;
+    // Results page URL - redirect here when processing completes
+    const resultsUrl = `{% url 'cases:video_results' case.id video.id %}`;
+    // Polling endpoint to check processing status before redirect
+    const processingStatusUrl = `{% url 'cases:video_processing_status' case.id video.id %}`;
+    const wsUrl = `ws://${window.location.host}/ws/stream/{{ case.id }}/{{ video.id }}/`;
+    
+    // Utility functions
+    function showMessage(message, type = 'info') {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `${type}-message`;
+        messageDiv.textContent = message;
+        messageContainer.appendChild(messageDiv);
+        
+        setTimeout(() => {
+            if (messageDiv.parentNode) {
+                messageDiv.parentNode.removeChild(messageDiv);
+            }
+        }, 5000);
+    }
+    
+    function updateStreamingStatus(status, isLive = false) {
+        streamingStatus.className = `streaming-indicator ${isLive ? 'streaming-live' : 'streaming-stopped'}`;
+        streamingStatus.innerHTML = `
+            <div class="w-2 h-2 bg-current rounded-full ${isLive ? 'pulse' : ''}"></div>
+            <span>${status}</span>
+        `;
+    }
+    
+    function hideAllStreams() {
+        mjpegStream.classList.add('hidden');
+        wsStream.classList.add('hidden');
+        streamPlaceholder.classList.remove('hidden');
+    }
+    
+    function showMjpegStream() {
+        mjpegStream.classList.remove('hidden');
+        wsStream.classList.add('hidden');
+        streamPlaceholder.classList.add('hidden');
+    }
+    
+    function showWebSocketStream() {
+        mjpegStream.classList.add('hidden');
+        wsStream.classList.remove('hidden');
+        streamPlaceholder.classList.add('hidden');
+    }
+    
+    function updateControls(streaming) {
+        isStreaming = streaming;
+        startMjpegBtn.classList.toggle('hidden', streaming);
+        startWsBtn.classList.toggle('hidden', streaming);
+        stopBtn.classList.toggle('hidden', !streaming);
+    }
+    
+    function updateStats(stats) {
+        progressPercent.textContent = `${stats.progress.toFixed(1)}%`;
+        progressBar.style.width = `${stats.progress}%`;
+        currentFrame.textContent = `${stats.processed_frames} / ${stats.total_frames}`;
+        streamFps.textContent = stats.fps.toFixed(1);
+        totalFaces.textContent = stats.faces_detected;
+        avgFaces.textContent = stats.avg_faces_per_frame.toFixed(1);
+        processingTime.textContent = `${(stats.processing_time * 1000).toFixed(0)}ms`;
+    }
+    
+    // MJPEG Streaming
+    function startMjpegStream() {
+        const quality = qualitySelect.value;
+        const fps = fpsSelect.value;
+        const url = `${mjpegUrl}?quality=${quality}&fps=${fps}`;
+        
+        mjpegStream.src = url;
+        mjpegStream.onload = () => {
+            showMjpegStream();
+            updateStreamingStatus('Live - MJPEG', true);
+            updateControls(true);
+            currentStream = 'mjpeg';
+            showMessage('MJPEG streaming started');
+            startStatsPolling();
+        };
+        
+        mjpegStream.onerror = () => {
+            showMessage('Failed to start MJPEG stream', 'error');
+            stopStream();
+        };
+    }
+    
+    // WebSocket Streaming
+    function startWebSocketStream() {
+        if (websocket) {
+            websocket.close();
+        }
+        
+        websocket = new WebSocket(wsUrl);
+        const canvas = wsStream;
+        const ctx = canvas.getContext('2d');
+        
+        websocket.onopen = () => {
+            showWebSocketStream();
+            updateStreamingStatus('Live - WebSocket', true);
+            updateControls(true);
+            currentStream = 'websocket';
+            showMessage('WebSocket streaming started');
+            
+            // Send start message
+            websocket.send(JSON.stringify({
+                type: 'start_stream',
+                quality: parseInt(qualitySelect.value),
+                fps: parseInt(fpsSelect.value)
+            }));
+        };
+        
+        websocket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            
+            if (data.type === 'frame') {
+                // Draw frame on canvas
+                const img = new Image();
+                img.onload = () => {
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+                };
+                img.src = 'data:image/jpeg;base64,' + (data.data || data.frame || data.frame_data);
+                
+                // Update face counter
+                faceCount.textContent = data.faces_detected || data.faces || (data.detection_data && data.detection_data.faces_detected) || '0';
+                
+                // Update stats
+                if (data.stats) {
+                    updateStats(data.stats);
+                }
+                
+            } else if (data.type === 'error') {
+                showMessage(data.message, 'error');
+                stopStream();
+                
+            } else if (data.type === 'completed') {
+                showMessage(data.message);
+                stopStream();
+                // Wait for backend persistence to finish before redirecting.
+                // Poll the processing status endpoint for up to 30s.
+                waitForProcessingThenRedirect(30000, 1000);
+
+            } else if (data.type === 'stats') {
+                updateStats(data.data);
+            }
+        };
+        
+        websocket.onerror = () => {
+            showMessage('WebSocket connection error', 'error');
+            stopStream();
+        };
+        
+        websocket.onclose = () => {
+            if (isStreaming) {
+                showMessage('WebSocket connection closed', 'error');
+                stopStream();
+            }
+        };
+    }
+    
+    // Stop streaming
+    function stopStream() {
+        if (currentStream === 'mjpeg') {
+            mjpegStream.src = '';
+        } else if (currentStream === 'websocket' && websocket) {
+            websocket.send(JSON.stringify({type: 'stop_stream'}));
+            websocket.close();
+            websocket = null;
+        }
+        
+        // Stop backend streaming
+        fetch(stopUrl, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        hideAllStreams();
+        updateStreamingStatus('Stopped', false);
+        updateControls(false);
+        currentStream = null;
+        faceCount.textContent = '0';
+        
+        if (statsInterval) {
+            clearInterval(statsInterval);
+            statsInterval = null;
+        }
+        
+        showMessage('Streaming stopped');
+    }
+    
+    // Statistics polling for MJPEG
+    function startStatsPolling() {
+        if (statsInterval) {
+            clearInterval(statsInterval);
+        }
+        
+        statsInterval = setInterval(() => {
+            fetch(statsUrl)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success' && data.stats) {
+                        updateStats(data.stats);
+                        
+                        if (!data.is_streaming) {
+                            stopStream();
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Stats polling error:', error);
+                });
+        }, 1000);
+    }
+    
+    // Get CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    
+    // Event listeners
+    startMjpegBtn.addEventListener('click', startMjpegStream);
+    startWsBtn.addEventListener('click', startWebSocketStream);
+    stopBtn.addEventListener('click', stopStream);
+
+    // Polling helper: poll processingStatusUrl until video.processed==true or timeout
+    function waitForProcessingThenRedirect(timeoutMs = 30000, intervalMs = 1000) {
+        const start = Date.now();
+
+        function checkOnce() {
+            fetch(processingStatusUrl)
+                .then(r => r.json())
+                .then(data => {
+                    // If server reports processed, redirect
+                    if (data && data.status === 'completed') {
+                        window.location.href = resultsUrl;
+                        return;
+                    }
+
+                    if (Date.now() - start < timeoutMs) {
+                        setTimeout(checkOnce, intervalMs);
+                    } else {
+                        // Timeout: redirect anyway but inform user results may still be processing
+                        showMessage('Processing is still running on the server. Redirecting to results page; data may appear shortly.', 'info');
+                        window.location.href = resultsUrl;
+                    }
+                })
+                .catch(err => {
+                    console.error('Processing status poll error:', err);
+                    if (Date.now() - start < timeoutMs) {
+                        setTimeout(checkOnce, intervalMs);
+                    } else {
+                        window.location.href = resultsUrl;
+                    }
+                });
+        }
+
+        checkOnce();
+    }
+    
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+        if (isStreaming) {
+            stopStream();
+        }
+    });
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+        hideAllStreams();
+        updateStreamingStatus('Ready', false);
+        updateControls(false);
+    });
+</script>
+{% endblock %}

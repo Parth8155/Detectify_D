@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detectify Security Platform - Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .grid-pattern {
+            background-image: 
+                linear-gradient(rgba(0, 255, 136, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 136, 0.05) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        
+        .terminal-cursor::after {
+            content: '_';
+            animation: blink 1s infinite;
+            color: #10b981;
+        }
+        
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        .cyber-lines {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .line {
+            position: absolute;
+            background: linear-gradient(90deg, transparent 0%, #10b981 50%, transparent 100%);
+            opacity: 0.3;
+        }
+
+        .line-horizontal {
+            height: 1px;
+            width: 100%;
+            left: -100%;
+            animation: moveHorizontal 12s linear infinite;
+        }
+
+        .line-vertical {
+            width: 1px;
+            height: 100%;
+            top: -100%;
+            animation: moveVertical 15s linear infinite;
+        }
+
+        .line:nth-child(1) { top: 25%; animation-delay: 0s; }
+        .line:nth-child(2) { top: 55%; animation-delay: 4s; }
+        .line:nth-child(3) { top: 80%; animation-delay: 8s; }
+        .line:nth-child(4) { left: 20%; animation-delay: 2s; }
+        .line:nth-child(5) { left: 70%; animation-delay: 6s; }
+
+        @keyframes moveHorizontal {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        @keyframes moveVertical {
+            0% { top: -100%; }
+            100% { top: 100%; }
+        }
+
+        .content-wrapper {
+            position: relative;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-white min-h-screen grid-pattern">
+    <!-- Animated background lines -->
+    <div class="cyber-lines">
+        <div class="line line-horizontal"></div>
+        <div class="line line-horizontal"></div>
+        <div class="line line-horizontal"></div>
+        <div class="line line-vertical"></div>
+        <div class="line line-vertical"></div>
+    </div>
+
+    <div class="content-wrapper">
+        <!-- Header -->
+        <header class="bg-slate-800 border-b border-slate-700">
+            <div class="px-6 py-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <div class="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center mr-3">
+                            <svg class="w-5 h-5 text-slate-900" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
+                            </svg>
+                        </div>
+                        <span class="text-xl font-bold text-emerald-400">DETECTIFY</span>
+                    </div>
+
+                    <div class="flex items-center space-x-4">
+                        <button class="p-2 hover:bg-slate-700 rounded-lg transition-colors">
+                            <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            </svg>
+                        </button>
+                        <span class="text-slate-300 text-sm">Dashboard</span>
+                        <button class="bg-emerald-500 hover:bg-emerald-400 text-slate-900 px-4 py-2 rounded-lg font-medium text-sm transition-colors">
+                            + New Case
+                        </button>
+                        <div class="flex items-center space-x-2">
+                            <div class="w-8 h-8 bg-slate-700 rounded-full flex items-center justify-center">
+                                <span class="text-xs font-medium text-slate-300">PM</span>
+                            </div>
+                            <span class="text-slate-300 text-sm">parth mahenva</span>
+                            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="flex">
+            <!-- Sidebar -->
+            <aside class="w-64 bg-slate-800 border-r border-slate-700 min-h-screen">
+                <div class="p-6">
+                    <div class="mb-6">
+                        <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Case Management</h3>
+                        <nav class="space-y-1">
+                            <a href="#" class="flex items-center px-3 py-2 bg-slate-700 text-emerald-400 rounded-lg">
+                                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 1v4"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 1v4"></path>
+                                </svg>
+                                Dashboard
+                            </a>
+                            <a href="#" class="flex items-center px-3 py-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                </svg>
+                                New Case
+                            </a>
+                            <a href="#" class="flex items-center px-3 py-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                </svg>
+                                Processing
+                            </a>
+                            <a href="#" class="flex items-center px-3 py-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                                Completed
+                            </a>
+                        </nav>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Main Content -->
+            <main class="flex-1 p-6">
+                <!-- Welcome Message -->
+                <div class="bg-emerald-900 bg-opacity-30 border border-emerald-700 rounded-lg p-4 mb-6">
+                    <div class="flex items-center">
+                        <div class="w-2 h-2 bg-emerald-400 rounded-full mr-3"></div>
+                        <span class="text-emerald-300">Welcome back, parth!</span>
+                    </div>
+                </div>
+
+                <!-- Search and Filters -->
+                <div class="mb-6">
+                    <div class="flex space-x-4">
+                        <div class="flex-1">
+                            <input type="text" placeholder="Search cases..." 
+                                   class="w-full px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                        </div>
+                        <button class="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors">
+                            Search
+                        </button>
+                        <select class="px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                            <option>All Status</option>
+                            <option>Active</option>
+                            <option>Completed</option>
+                            <option>Processing</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <!-- Card 1 -->
+                    <div class="bg-slate-800 border border-slate-700 rounded-lg p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-sm font-medium text-slate-400">COMPLETED</h3>
+                            <span class="px-2 py-1 bg-emerald-900 bg-opacity-50 text-emerald-300 text-xs font-medium rounded-full">
+                                Completed
+                            </span>
+                        </div>
+                        <div class="space-y-3">
+                            <div class="flex justify-between">
+                                <span class="text-2xl font-bold text-white">406</span>
+                                <span class="text-slate-400 text-sm">Incidents</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-2xl font-bold text-white">406</span>
+                                <span class="text-slate-400 text-sm">Malices</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-2xl font-bold text-white">106</span>
+                                <span class="text-slate-400 text-sm">Detections</span>
+                            </div>
+                        </div>
+                        <div class="mt-4 pt-4 border-t border-slate-700">
+                            <div class="flex items-center text-slate-400 text-sm">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2v16a2 2 0 002 2z"></path>
+                                </svg>
+                                Created Aug 13, 2025
+                            </div>
+                        </div>
+                        <button class="w-full mt-4 bg-emerald-600 hover:bg-emerald-500 text-white py-2 px-4 rounded-lg transition-colors text-sm font-medium">
+                            View Details
+                        </button>
+                    </div>
+
+                    <!-- Card 2 -->
+                    <div class="bg-slate-800 border border-slate-700 rounded-lg p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-sm font-medium text-slate-400">READY</h3>
+                            <span class="px-2 py-1 bg-green-900 bg-opacity-50 text-green-300 text-xs font-medium rounded-full">
+                                Ready
+                            </span>
+                        </div>
+                        <div class="space-y-3">
+                            <div class="flex justify-between">
+                                <span class="text-2xl font-bold text-white">0</span>
+                                <span class="text-slate-400 text-sm">Incidents</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-2xl font-bold text-white">0</span>
+                                <span class="text-slate-400 text-sm">Malices</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-2xl font-bold text-white">0</span>
+                                <span class="text-slate-400 text-sm">Detections</span>
+                            </div>
+                        </div>
+                        <div class="mt-4 pt-4 border-t border-slate-700">
+                            <div class="flex items-center text-slate-400 text-sm">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2v16a2 2 0 002 2z"></path>
+                                </svg>
+                                Created Aug 13, 2025
+                            </div>
+                        </div>
+                        <button class="w-full mt-4 bg-emerald-600 hover:bg-emerald-500 text-white py-2 px-4 rounded-lg transition-colors text-sm font-medium">
+                            View Details
+                        </button>
+                    </div>
+
+                    <!-- Card 3 -->
+                    <div class="bg-slate-800 border border-slate-700 rounded-lg p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-sm font-medium text-slate-400">CREATED</h3>
+                            <span class="px-2 py-1 bg-blue-900 bg-opacity-50 text-blue-300 text-xs font-medium rounded-full">
+                                Created
+                            </span>
+                        </div>
+                        <div class="space-y-3">
+                            <div class="flex justify-between">
+                                <span class="text-2xl font-bold text-white">0</span>
+                                <span class="text-slate-400 text-sm">Incidents</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-2xl font-bold text-white">0</span>
+                                <span class="text-slate-400 text-sm">Malices</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-2xl font-bold text-white">0</span>
+                                <span class="text-slate-400 text-sm">Detections</span>
+                            </div>
+                        </div>
+                        <div class="mt-4 pt-4 border-t border-slate-700">
+                            <div class="flex items-center text-slate-400 text-sm">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2v16a2 2 0 002 2z"></path>
+                                </svg>
+                                Created Aug 13, 2025
+                            </div>
+                        </div>
+                        <button class="w-full mt-4 bg-emerald-600 hover:bg-emerald-500 text-white py-2 px-4 rounded-lg transition-colors text-sm font-medium">
+                            View Details
+                        </button>
+                    </div>
+                </div>
+
+                <!-- System Status -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-slate-800 border border-slate-700 rounded-lg p-6">
+                        <h3 class="text-lg font-semibold text-white mb-4">System Status</h3>
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between">
+                                <span class="text-slate-300">Threat Detection Engine</span>
+                                <div class="flex items-center">
+                                    <div class="w-2 h-2 bg-emerald-400 rounded-full mr-2"></div>
+                                    <span class="text-emerald-400 text-sm terminal-cursor">Operational</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-slate-300">Vulnerability Scanner</span>
+                                <div class="flex items-center">
+                                    <div class="w-2 h-2 bg-emerald-400 rounded-full mr-2"></div>
+                                    <span class="text-emerald-400 text-sm">Online</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-slate-300">Incident Response</span>
+                                <div class="flex items-center">
+                                    <div class="w-2 h-2 bg-emerald-400 rounded-full mr-2"></div>
+                                    <span class="text-emerald-400 text-sm">Ready</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-800 border border-slate-700 rounded-lg p-6">
+                        <h3 class="text-lg font-semibold text-white mb-4">Recent Activity</h3>
+                        <div class="space-y-3">
+                            <div class="flex items-start">
+                                <div class="w-2 h-2 bg-emerald-400 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                                <div>
+                                    <p class="text-slate-300 text-sm">New threat signature detected</p>
+                                    <p class="text-slate-500 text-xs">2 minutes ago</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="w-2 h-2 bg-blue-400 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                                <div>
+                                    <p class="text-slate-300 text-sm">Security scan completed</p>
+                                    <p class="text-slate-500 text-xs">15 minutes ago</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="w-2 h-2 bg-yellow-400 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                                <div>
+                                    <p class="text-slate-300 text-sm">System update available</p>
+                                    <p class="text-slate-500 text-xs">1 hour ago</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+</body>
+</html>

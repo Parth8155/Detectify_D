@@ -8,10 +8,13 @@
 {% block extra_css %}
 <style>
     /* Dark cybersecurity theme */
-    body { background-color: #0f172a; color: #e2e8f0; }
-    
+    body {
+        background-color: #0f172a;
+        color: #e2e8f0;
+    }
+
     .grid-pattern {
-        background-image: 
+        background-image:
             linear-gradient(rgba(16, 185, 129, 0.1) 1px, transparent 1px),
             linear-gradient(90deg, rgba(16, 185, 129, 0.1) 1px, transparent 1px);
         background-size: 20px 20px;
@@ -47,22 +50,71 @@
         animation: moveVertical 10s linear infinite;
     }
 
-    @keyframes moveHorizontal { 0% { left: -100%; } 100% { left: 100%; } }
-    @keyframes moveVertical { 0% { top: -100%; } 100% { top: 100%; } }
+    @keyframes moveHorizontal {
+        0% {
+            left: -100%;
+        }
 
-    .line:nth-child(1) { top: 20%; animation-delay: 0s; }
-    .line:nth-child(2) { top: 45%; animation-delay: 3s; }
-    .line:nth-child(3) { top: 70%; animation-delay: 6s; }
-    .line:nth-child(4) { left: 25%; animation-delay: 1s; }
-    .line:nth-child(5) { left: 60%; animation-delay: 4s; }
-    .line:nth-child(6) { left: 80%; animation-delay: 7s; }
-
-    @keyframes pulse {
-        0% { opacity: 1; }
-        100% { opacity: 0.7; }
+        100% {
+            left: 100%;
+        }
     }
 
-    .fast-forward-effect { position: relative; overflow: hidden; }
+    @keyframes moveVertical {
+        0% {
+            top: -100%;
+        }
+
+        100% {
+            top: 100%;
+        }
+    }
+
+    .line:nth-child(1) {
+        top: 20%;
+        animation-delay: 0s;
+    }
+
+    .line:nth-child(2) {
+        top: 45%;
+        animation-delay: 3s;
+    }
+
+    .line:nth-child(3) {
+        top: 70%;
+        animation-delay: 6s;
+    }
+
+    .line:nth-child(4) {
+        left: 25%;
+        animation-delay: 1s;
+    }
+
+    .line:nth-child(5) {
+        left: 60%;
+        animation-delay: 4s;
+    }
+
+    .line:nth-child(6) {
+        left: 80%;
+        animation-delay: 7s;
+    }
+
+    @keyframes pulse {
+        0% {
+            opacity: 1;
+        }
+
+        100% {
+            opacity: 0.7;
+        }
+    }
+
+    .fast-forward-effect {
+        position: relative;
+        overflow: hidden;
+    }
+
     .fast-forward-effect::after {
         content: '⏩';
         position: absolute;
@@ -73,9 +125,22 @@
     }
 
     @keyframes bounce {
-        0%, 20%, 50%, 80%, 100% { transform: translateY(-50%); }
-        40% { transform: translateY(-60%); }
-        60% { transform: translateY(-55%); }
+
+        0%,
+        20%,
+        50%,
+        80%,
+        100% {
+            transform: translateY(-50%);
+        }
+
+        40% {
+            transform: translateY(-60%);
+        }
+
+        60% {
+            transform: translateY(-55%);
+        }
     }
 </style>
 {% endblock %}
@@ -95,6 +160,19 @@
         </div>
     </div>
 
+    <!-- Lightweight modal helpers placed early so inline onclick handlers don't fail if main JS has an error -->
+    <script>
+        window.openModal = function (modalId) {
+            const el = document.getElementById(modalId);
+            if (el) el.classList.remove('hidden');
+        };
+
+        window.closeModal = function (modalId) {
+            const el = document.getElementById(modalId);
+            if (el) el.classList.add('hidden');
+        };
+    </script>
+
     <!-- Content -->
     <div class="relative z-10 p-6">
         <!-- Header -->
@@ -103,7 +181,7 @@
                 <h1 class="text-3xl font-bold text-white flex items-center">
                     <div class="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center mr-3">
                         <svg class="w-5 h-5 text-slate-900" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                     </div>
                     {{ case.name }}
@@ -120,14 +198,16 @@
                 <a href="{% url 'cases:dashboard' %}"
                     class="inline-flex items-center px-4 py-2 border border-slate-600 text-sm font-medium rounded-lg text-slate-300 bg-slate-800 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                     </svg>
                     Back to Dashboard
                 </a>
                 <button type="button" onclick="openModal('addSuspectModal')"
                     class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-slate-900 bg-emerald-500 hover:bg-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
                     Add Suspect
                 </button>
@@ -149,7 +229,8 @@
                 <div class="bg-slate-800 border border-slate-700 rounded-lg shadow-xl">
                     <div class="px-6 py-4 border-b border-slate-700">
                         <h3 class="text-lg font-medium text-white flex items-center">
-                            <svg class="w-5 h-5 mr-2 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="w-5 h-5 mr-2 text-emerald-400" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
@@ -182,7 +263,8 @@
                 <div class="bg-slate-800 border border-slate-700 rounded-lg shadow-xl">
                     <div class="px-6 py-4 border-b border-slate-700">
                         <h3 class="text-lg font-medium text-white flex items-center">
-                            <svg class="w-5 h-5 mr-2 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="w-5 h-5 mr-2 text-emerald-400" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                             </svg>
@@ -222,7 +304,8 @@
                 <button type="button" onclick="openModal('addSuspectModal')"
                     class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-lg text-slate-900 bg-emerald-500 hover:bg-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors">
                     <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
                     Add Suspect
                 </button>
@@ -231,7 +314,8 @@
                 {% if suspect_images %}
                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                     {% for suspect in suspect_images %}
-                    <div class="bg-slate-900 rounded-lg border border-slate-700 overflow-hidden hover:shadow-lg hover:border-emerald-500 transition-all duration-300">
+                    <div
+                        class="bg-slate-900 rounded-lg border border-slate-700 overflow-hidden hover:shadow-lg hover:border-emerald-500 transition-all duration-300">
                         <div class="aspect-square">
                             <img src="{% url 'cases:suspect_image' suspect.id %}" class="w-full h-full object-cover"
                                 alt="Suspect Image">
@@ -241,11 +325,13 @@
                                 <span class="text-sm text-slate-400">{{ suspect.uploaded_at|date:"M d" }}</span>
                                 <div class="suspect-status-{{ suspect.id }}">
                                     {% if suspect.processed %}
-                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-emerald-900 text-emerald-300 border border-emerald-700">
+                                    <span
+                                        class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-emerald-900 text-emerald-300 border border-emerald-700">
                                         Processed
                                     </span>
                                     {% else %}
-                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-900 text-blue-300 border border-blue-700">
+                                    <span
+                                        class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-900 text-blue-300 border border-blue-700">
                                         Uploaded
                                     </span>
                                     {% endif %}
@@ -280,7 +366,8 @@
                     <button type="button" onclick="openModal('addSuspectModal')"
                         class="inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-lg text-slate-900 bg-emerald-500 hover:bg-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors">
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                         </svg>
                         Add First Suspect
                     </button>
@@ -302,7 +389,8 @@
                 <button type="button" onclick="openModal('uploadVideoModal')"
                     class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-lg text-slate-900 bg-blue-500 hover:bg-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
                     <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
                     Upload Video
                 </button>
@@ -313,11 +401,21 @@
                     <table class="min-w-full divide-y divide-slate-700">
                         <thead class="bg-slate-900">
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-emerald-400 uppercase tracking-wider">Video</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-emerald-400 uppercase tracking-wider">Status</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-emerald-400 uppercase tracking-wider">Upload Date</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-emerald-400 uppercase tracking-wider">Detections</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-emerald-400 uppercase tracking-wider">Actions</th>
+                                <th
+                                    class="px-6 py-3 text-left text-xs font-medium text-emerald-400 uppercase tracking-wider">
+                                    Video</th>
+                                <th
+                                    class="px-6 py-3 text-left text-xs font-medium text-emerald-400 uppercase tracking-wider">
+                                    Status</th>
+                                <th
+                                    class="px-6 py-3 text-left text-xs font-medium text-emerald-400 uppercase tracking-wider">
+                                    Upload Date</th>
+                                <th
+                                    class="px-6 py-3 text-left text-xs font-medium text-emerald-400 uppercase tracking-wider">
+                                    Detections</th>
+                                <th
+                                    class="px-6 py-3 text-left text-xs font-medium text-emerald-400 uppercase tracking-wider">
+                                    Actions</th>
                             </tr>
                         </thead>
                         <tbody class="bg-slate-800 divide-y divide-slate-700">
@@ -325,14 +423,17 @@
                             <tr class="hover:bg-slate-700 transition-colors" data-video-id="{{ video.id }}">
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="flex items-center">
-                                        <svg class="w-5 h-5 mr-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg class="w-5 h-5 mr-3 text-slate-400" fill="none" stroke="currentColor"
+                                            viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                 d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                                         </svg>
                                         <div>
-                                            <span class="text-sm text-white">{{ video.video_file.name|default:"Video" }}</span>
+                                            <span class="text-sm text-white">{{ video.video_file.name|default:"Video"
+                                                }}</span>
                                             {% if video.duration %}
-                                            <div class="text-xs text-slate-400">{{ video.duration|floatformat:1 }}s • {{ video.fps }} fps</div>
+                                            <div class="text-xs text-slate-400">{{ video.duration|floatformat:1 }}s • {{
+                                                video.fps }} fps</div>
                                             {% endif %}
                                         </div>
                                     </div>
@@ -340,30 +441,42 @@
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="video-status-{{ video.id }}">
                                         {% if video.processed %}
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-900 text-emerald-300 border border-emerald-700">
-                                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                        <span
+                                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-900 text-emerald-300 border border-emerald-700">
+                                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor"
+                                                viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M5 13l4 4L19 7" />
                                             </svg>
                                             Processed
                                         </span>
                                         {% elif video.processing_started_at %}
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-900 text-yellow-300 border border-yellow-700">
+                                        <span
+                                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-900 text-yellow-300 border border-yellow-700">
                                             <svg class="animate-spin w-3 h-3 mr-1" fill="none" viewBox="0 0 24 24">
-                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 0 1 4 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                                    stroke-width="4"></circle>
+                                                <path class="opacity-75" fill="currentColor"
+                                                    d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 0 1 4 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                                </path>
                                             </svg>
                                             Processing...
                                         </span>
                                         <div class="mt-1">
                                             <div class="bg-slate-700 rounded-full h-2">
-                                                <div class="bg-yellow-500 h-2 rounded-full processing-progress-{{ video.id }}" style="width: 0%"></div>
+                                                <div class="bg-yellow-500 h-2 rounded-full processing-progress-{{ video.id }}"
+                                                    style="width: 0%"></div>
                                             </div>
-                                            <div class="text-xs text-slate-400 mt-1 processing-message-{{ video.id }}">Starting processing...</div>
+                                            <div class="text-xs text-slate-400 mt-1 processing-message-{{ video.id }}">
+                                                Starting processing...</div>
                                         </div>
                                         {% else %}
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-900 text-blue-300 border border-blue-700">
-                                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                        <span
+                                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-900 text-blue-300 border border-blue-700">
+                                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor"
+                                                viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                                             </svg>
                                             Uploaded
                                         </span>
@@ -374,7 +487,8 @@
                                     {{ video.uploaded_at|date:"M d, Y g:i A" }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-900 text-blue-300 border border-blue-700 detection-count-{{ video.id }}">
+                                    <span
+                                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-900 text-blue-300 border border-blue-700 detection-count-{{ video.id }}">
                                         {{ video.detections.count }}
                                     </span>
                                 </td>
@@ -383,43 +497,57 @@
                                         {% if video.processed %}
                                         <a href="{% url 'cases:video_results' case.id video.id %}"
                                             class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-lg text-slate-900 bg-blue-500 hover:bg-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-1 transition-colors">
-                                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor"
+                                                viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                             </svg>
                                             View Results
                                         </a>
+                                        
                                         {% elif video.processing_started_at %}
-                                        <span class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-lg text-slate-500 bg-slate-700">
+                                        <span
+                                            class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-lg text-slate-500 bg-slate-700">
                                             <svg class="animate-spin w-3 h-3 mr-1" fill="none" viewBox="0 0 24 24">
-                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 0 1 4 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                                    stroke-width="4"></circle>
+                                                <path class="opacity-75" fill="currentColor"
+                                                    d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 0 1 4 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                                </path>
                                             </svg>
                                             Processing
                                         </span>
-                                        {% elif not video.duration %}
+                                        {% else %}
                                         <button onclick="extractVideoMetadata({{ case.id }}, {{ video.id }})"
                                             class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-lg text-slate-900 bg-orange-500 hover:bg-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-500 mb-1 transition-colors">
-                                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor"
+                                                viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                             </svg>
                                             Extract Info
                                         </button>
                                         <br>
                                         <button onclick="processVideo({{ case.id }}, {{ video.id }})"
-                                            class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-lg text-slate-900 bg-emerald-500 hover:bg-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors">
-                                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h8m-9-4V8a2 2 0 012-2h8a2 2 0 012 2v2M7 12a2 2 0 100 4 2 2 0 000-4z" />
-                                        </svg>
-                                        Process Video
-                                    </button>
-                                        {% else %}
-                                        <button onclick="processVideo({{ case.id }}, {{ video.id }})"
-                                            class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-lg text-slate-900 bg-emerald-500 hover:bg-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors">
-                                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h8m-9-4V8a2 2 0 012-2h8a2 2 0 012 2v2M7 12a2 2 0 100 4 2 2 0 000-4z" />
+                                            class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-lg text-slate-900 bg-emerald-500 hover:bg-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 mb-1 transition-colors">
+                                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor"
+                                                viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h8m-9-4V8a2 2 0 012-2h8a2 2 0 012 2v2M7 12a2 2 0 100 4 2 2 0 000-4z" />
                                             </svg>
                                             Process Video
+                                        </button>
+                                        <br>
+                                        <button onclick="processRealTimeVideo({{ case.id }}, {{ video.id }})"
+                                            class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-lg text-slate-900 bg-purple-500 hover:bg-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors">
+                                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor"
+                                                viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                            </svg>
+                                            Process Real Time
                                         </button>
                                         {% endif %}
                                     </div>
@@ -442,7 +570,8 @@
                     <button type="button" onclick="openModal('uploadVideoModal')"
                         class="inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-lg text-slate-900 bg-blue-500 hover:bg-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                         </svg>
                         Upload First Video
                     </button>
@@ -466,9 +595,11 @@
             <div class="p-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {% for processed_video in processed_videos %}
-                    <div class="bg-slate-900 border border-slate-700 rounded-lg p-6 hover:border-emerald-500 transition-colors">
+                    <div
+                        class="bg-slate-900 border border-slate-700 rounded-lg p-6 hover:border-emerald-500 transition-colors">
                         <h4 class="text-sm font-medium text-white flex items-center mb-3">
-                            <svg class="w-4 h-4 mr-2 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="w-4 h-4 mr-2 text-emerald-400" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                             </svg>
@@ -502,14 +633,17 @@
                 <h3 class="text-xl font-medium text-white flex items-center">
                     <div class="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center mr-3">
                         <svg class="w-5 h-5 text-slate-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                         </svg>
                     </div>
                     Add Suspect Image
                 </h3>
-                <button type="button" onclick="closeModal('addSuspectModal')" class="text-slate-400 hover:text-slate-300" title="Close">
+                <button type="button" onclick="closeModal('addSuspectModal')"
+                    class="text-slate-400 hover:text-slate-300" title="Close">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
                     </svg>
                 </button>
             </div>
@@ -521,12 +655,14 @@
                         class="block w-full text-sm text-slate-300 bg-slate-700 border border-slate-600 rounded-lg focus:ring-emerald-500 focus:border-emerald-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-emerald-500 file:text-slate-900 hover:file:bg-emerald-400">
                     <p class="mt-1 text-sm text-slate-400">Supported formats: JPG, JPEG, PNG (max 50MB)</p>
                     <div id="suspectImagePreview" class="mt-2 hidden">
-                        <img id="suspectPreviewImg" class="max-w-full h-32 object-cover rounded-lg border border-slate-600" alt="Preview">
+                        <img id="suspectPreviewImg"
+                            class="max-w-full h-32 object-cover rounded-lg border border-slate-600" alt="Preview">
                         <p id="suspectImageInfo" class="text-xs text-slate-400 mt-1"></p>
                     </div>
                 </div>
                 <div class="mb-6">
-                    <label for="suspectDescription" class="block text-sm font-medium text-slate-300 mb-2">Description (Optional)</label>
+                    <label for="suspectDescription" class="block text-sm font-medium text-slate-300 mb-2">Description
+                        (Optional)</label>
                     <textarea id="suspectDescription" name="description" rows="3"
                         placeholder="Add any notes about this suspect..."
                         class="block w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm"></textarea>
@@ -564,9 +700,11 @@
                     </div>
                     Upload Video
                 </h3>
-                <button type="button" onclick="closeModal('uploadVideoModal')" class="text-slate-400 hover:text-slate-300" title="Close">
+                <button type="button" onclick="closeModal('uploadVideoModal')"
+                    class="text-slate-400 hover:text-slate-300" title="Close">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
                     </svg>
                 </button>
             </div>
@@ -582,7 +720,8 @@
                     </div>
                 </div>
                 <div class="mb-6">
-                    <label for="videoDescription" class="block text-sm font-medium text-slate-300 mb-2">Description (Optional)</label>
+                    <label for="videoDescription" class="block text-sm font-medium text-slate-300 mb-2">Description
+                        (Optional)</label>
                     <textarea id="videoDescription" name="description" rows="3"
                         placeholder="Add any notes about this video..."
                         class="block w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"></textarea>
@@ -610,14 +749,13 @@
 
 {% block extra_js %}
 <script>
-    // Modal functionality
-    window.openModal = function(modalId) {
-        document.getElementById(modalId).classList.remove('hidden');
+    // Process real-time video function (defined early to ensure availability)
+    function processRealTimeVideo(caseId, videoId) {
+        console.log('processRealTimeVideo called:', caseId, videoId);
+        // Redirect to real-time stream page
+        window.location.href = `/dashboard/${caseId}/video/${videoId}/stream/page/`;
     }
-
-    window.closeModal = function(modalId) {
-        document.getElementById(modalId).classList.add('hidden');
-    };
+    console.log("Script loaded, processRealTimeVideo is:", typeof processRealTimeVideo);
 
     // Processing status tracking
     let processingVideos = new Set();
@@ -719,13 +857,13 @@
     // Process video function
     function processVideo(caseId, videoId) {
         console.log('processVideo called:', caseId, videoId);
-        
+
         // Immediately update status to show processing state with progress bar
         const statusElement = document.querySelector(`.video-status-${videoId}`);
         const actionsElement = document.querySelector(`.video-actions-${videoId}`);
-        
-        console.log('Found elements:', {statusElement, actionsElement});
-        
+
+        console.log('Found elements:', { statusElement, actionsElement });
+
         if (statusElement) {
             console.log('Updating status element');
             statusElement.innerHTML = `
@@ -744,7 +882,7 @@
                 </div>
             `;
         }
-        
+
         if (actionsElement) {
             console.log('Updating actions element');
             actionsElement.innerHTML = `
@@ -757,7 +895,7 @@
                 </span>
             `;
         }
-        
+
         const videoElement = document.querySelector(`.video-${videoId}`);
 
         if (videoElement) {
@@ -805,18 +943,18 @@
                     showSuccess(data.message);
                     // Start monitoring progress for this video
                     processingVideos.add(videoId);
-                    
+
                     // Update progress bar immediately to show backend started
                     const progressElement = document.querySelector(`.processing-progress-${videoId}`);
                     const messageElement = document.querySelector(`.processing-message-${videoId}`);
-                    
+
                     if (progressElement) {
                         progressElement.style.width = '10%';
                     }
                     if (messageElement) {
                         messageElement.textContent = 'Backend processing started...';
                     }
-                    
+
                     // Start monitoring with shorter delay
                     setTimeout(() => {
                         monitorVideoProcessing(caseId, videoId);
@@ -881,7 +1019,7 @@
         const progressElement = document.querySelector(`.processing-progress-${videoId}`);
         const messageElement = document.querySelector(`.processing-message-${videoId}`);
 
-        console.log('Found progress elements:', {progressElement, messageElement});
+        console.log('Found progress elements:', { progressElement, messageElement });
 
         if (progressElement && statusData.progress !== undefined) {
             console.log('Setting progress to:', statusData.progress + '%');
@@ -968,6 +1106,16 @@
         }, 5000);
     }
 
+    // Modal functionality
+    window.openModal = function (modalId) {
+        document.getElementById(modalId).classList.remove('hidden');
+    }
+
+    window.closeModal = function (modalId) {
+        document.getElementById(modalId).classList.add('hidden');
+    };
+
+
     document.addEventListener('DOMContentLoaded', function () {
         // File input validation and preview
         const suspectImageInput = document.getElementById('suspectImage');
@@ -1031,9 +1179,12 @@
             });
         }
 
-    // Automatically start monitoring videos that are already processing on page load.
-    // This replaces the non-functional `if` statement from the original code.
-    const caseId = {{ case.id }};
+        // Automatically start monitoring videos that are already processing on page load.
+        // This replaces the non-functional `if` statement from the original code.
+        const caseId = {{ case.id|default:"null" }};
+        
+    });
+
     {% for video in videos %}
     {% if video.processing_started_at and not video.processed %}
     processingVideos.add({{ video.id }});
@@ -1078,11 +1229,11 @@
                             <svg class="animate-spin w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 0 1 4 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        `;
+                            </svg>
+                            Uploading... ${percentComplete.toFixed(0)}%
+                    `;
                 }
-            });
-
-            xhr.onload = function () {
+            }); xhr.onload = function () {
                 submitButton.disabled = false;
                 submitButton.innerHTML = originalButtonText;
 
@@ -1155,7 +1306,7 @@
                 if (e.lengthComputable) {
                     const percentComplete = (e.loaded / e.total) * 100;
                     submitButton.innerHTML = `
-                            <svg class="animate-spin w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24">
+                            <svg class="animate-spin w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 0 1 4 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         `;
@@ -1171,7 +1322,7 @@
                     if (response.status === 'success') {
                         closeModal('uploadVideoModal');
                         showSuccess(response.message);
-                        // Refresh page after a short delay
+                        // Reload page to show the three buttons: Extract Info, Process Video, Process Real Time
                         setTimeout(() => location.reload(), 1500);
                     } else {
                         showError(response.message || 'Upload failed');
@@ -1200,6 +1351,6 @@
             xhr.send(formData);
         });
     }
-    });
+
 </script>
 {% endblock %}

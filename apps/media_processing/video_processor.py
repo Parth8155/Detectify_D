@@ -14,6 +14,12 @@ import tempfile
 import time
 
 class VideoProcessor:
+
+    def analyze_video_for_unique_faces(self, video_path: str, similarity_threshold: float = 0.7, progress_callback=None):
+        """
+        Stub: Unique face extraction disabled.
+        """
+        return []
     """Handles video processing operations for face detection"""
     
     def __init__(self):
@@ -155,8 +161,8 @@ class VideoProcessor:
                             detections_found += 1
                 finally:
                     print()
-                    # if os.path.exists(temp_face_path):
-                    #     os.remove(temp_face_path)
+                    if os.path.exists(temp_face_path):
+                        os.remove(temp_face_path)
     
         cv2.destroyAllWindows()
         return detections

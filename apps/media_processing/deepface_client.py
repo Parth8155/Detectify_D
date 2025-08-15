@@ -334,14 +334,12 @@ class DeepFaceClient(FacialRecognition):
                 else:
                     resized_frame = frame
                 
-                # Detect people using HOG
+                # Detect people using HOG (remove unsupported arguments for OpenCV version compatibility)
                 (people, weights) = self.hog.detectMultiScale(
                     resized_frame,
                     winStride=(4, 4),
                     padding=(8, 8),
-                    scale=1.05,
-                    finalThreshold=2.0,
-                    useMeanshiftGrouping=False
+                    scale=1.05
                 )
                 
                 # Scale back coordinates if frame was resized

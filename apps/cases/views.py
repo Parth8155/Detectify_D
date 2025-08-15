@@ -1,7 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse, HttpResponse, Http404
 from django.views.decorators.http import require_http_methods
 from django.core.paginator import Paginator
 from django.db.models import Q, Count
@@ -9,8 +9,11 @@ from django.conf import settings
 from django.utils import timezone
 import json
 
-from .models import Case, SuspectImage, VideoUpload, DetectionResult, ProcessedVideo, PeopleDetection
+from .models import Case, SuspectImage, VideoUpload, DetectionResult, ProcessedVideo
 from .forms import CaseForm, SuspectImageForm, VideoUploadForm
+
+# Import streaming views
+from ..media_processing.streaming_views import stream_video_mjpeg, stream_stats, stop_stream
 
 
 # --- REVERT TO SYNC VIEWS ---
@@ -320,55 +323,34 @@ def process_video(request, case_id, video_id):
     
     # Start processing
     suspect_ids = list(suspects.values_list('id', flat=True))
-    
+
+    # Set processing_started_at immediately so UI can reflect status
+    video.processing_started_at = timezone.now()
+    video.save()
+
     from apps.media_processing.tasks import process_video_task
     try:
-        video.processing_started_at = timezone.now()
-        video.save()
-        
-        result = process_video_task(video.id, suspect_ids)
-        task_id = 'sync_processing'
-        message = 'Video processing completed synchronously!'
+        # Try to run as async task if possible
+        if hasattr(process_video_task, 'delay'):
+            task = process_video_task.delay(video.id, suspect_ids)
+            task_id = getattr(task, 'id', 'celery')
+            message = 'Video processing started!'
+        else:
+            result = process_video_task(video.id, suspect_ids)
+            task_id = 'sync_processing'
+            message = 'Video processing completed synchronously!'
     except Exception as proc_error:
         return JsonResponse({
             'status': 'error',
             'message': f'Video processing failed: {str(proc_error)}'
         })
-    
+
     return JsonResponse({
         'status': 'success',
         'message': message,
         'task_id': task_id
     })
-
-
-@login_required
-def video_results(request, case_id, video_id):
-    """View detection results for a video"""
-    case = get_object_or_404(Case, id=case_id, user=request.user)
-    video = get_object_or_404(VideoUpload, id=video_id, case=case)
     
-    detections = DetectionResult.objects.filter(video=video).select_related('suspect')
-    
-    # Group detections by suspect
-    detections_by_suspect = {}
-    for detection in detections:
-        suspect_id = detection.suspect.id
-        if suspect_id not in detections_by_suspect:
-            detections_by_suspect[suspect_id] = {
-                'suspect': detection.suspect,
-                'detections': []
-            }
-        detections_by_suspect[suspect_id]['detections'].append(detection)
-    
-    context = {
-        'case': case,
-        'video': video,
-        'detections_by_suspect': detections_by_suspect,
-        'total_detections': detections.count(),
-    }
-    
-    return render(request, 'cases/video_results.html', context)
 
 
 @login_required 
@@ -569,41 +551,6 @@ def delete_case(request, case_id):
     context = {'case': case}
     return render(request, 'cases/delete_case.html', context)
 
-
-@login_required
-@require_http_methods(["POST"])
-def detect_people_in_video(request, case_id, video_id):
-    """Start people detection in video"""
-    case = get_object_or_404(Case, id=case_id, user=request.user)
-    video = get_object_or_404(VideoUpload, id=video_id, case=case)
-    
-    # Check if people detection already exists
-    existing_detections = PeopleDetection.objects.filter(video=video).exists()
-    if existing_detections:
-        return JsonResponse({
-            'status': 'error',
-            'message': 'People detection has already been performed on this video.'
-        })
-    
-    # Start people detection
-    try:
-        from apps.media_processing.tasks import detect_people_in_video_task
-        result = detect_people_in_video_task(video.id)
-        task_id = 'sync_processing'
-        message = 'People detection completed!'
-    except Exception as e:
-        return JsonResponse({
-            'status': 'error',
-            'message': f'People detection failed: {str(e)}'
-        })
-    
-    return JsonResponse({
-        'status': 'success',
-        'message': message,
-        'task_id': task_id
-    })
-
-
 @login_required
 def people_detection_results(request, case_id, video_id):
     """View people detection results for a video"""
@@ -646,3 +593,40 @@ def people_detection_results(request, case_id, video_id):
     }
     
     return render(request, 'cases/people_detection_results.html', context)
+
+def suspect_image(request, suspect_id):
+    from .models import SuspectImage
+    import logging
+    logger = logging.getLogger("django")
+    try:
+        suspect = SuspectImage.objects.get(id=suspect_id)
+        if not suspect.image_data:
+            logger.error(f"Suspect {suspect_id} has no image_data.")
+            raise Http404()
+        # Always use the correct MIME type for JPEG
+        if suspect.image_type in ["jpg", "jpeg"]:
+            content_type = "image/jpeg"
+        elif suspect.image_type == "png":
+            content_type = "image/png"
+        else:
+            content_type = "application/octet-stream"
+        logger.info(f"Serving suspect image: id={suspect_id}, name={suspect.image_name}, type={suspect.image_type}, size={suspect.image_size}, content_type={content_type}")
+        logger.info(f"First 16 bytes: {suspect.image_data[:16]}")
+        return HttpResponse(suspect.image_data, content_type=content_type)
+    except SuspectImage.DoesNotExist:
+        logger.error(f"SuspectImage.DoesNotExist for id={suspect_id}")
+        raise Http404()
+
+
+@login_required
+def stream_video_page(request, case_id, video_id):
+    """Serve the real-time streaming page."""
+    case = get_object_or_404(Case, id=case_id, user=request.user)
+    video = get_object_or_404(VideoUpload, id=video_id, case=case)
+    
+    context = {
+        'case': case,
+        'video': video
+    }
+    
+    return render(request, 'cases/stream_video.html', context)

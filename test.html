@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detectify Security Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .grid-pattern {
+            background-image: 
+                linear-gradient(rgba(0, 255, 136, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 136, 0.1) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        
+        .terminal-cursor::after {
+            content: '_';
+            animation: blink 1s infinite;
+            color: #10b981;
+        }
+        
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        .cyber-lines {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .line {
+            position: absolute;
+            background: linear-gradient(90deg, transparent 0%, #10b981 50%, transparent 100%);
+            opacity: 0.6;
+        }
+
+        .line-horizontal {
+            height: 1px;
+            width: 100%;
+            left: -100%;
+            animation: moveHorizontal 8s linear infinite;
+        }
+
+        .line-vertical {
+            width: 1px;
+            height: 100%;
+            top: -100%;
+            animation: moveVertical 10s linear infinite;
+        }
+
+        .line:nth-child(1) { top: 20%; animation-delay: 0s; }
+        .line:nth-child(2) { top: 45%; animation-delay: 3s; }
+        .line:nth-child(3) { top: 70%; animation-delay: 6s; }
+        .line:nth-child(4) { left: 25%; animation-delay: 1s; }
+        .line:nth-child(5) { left: 60%; animation-delay: 4s; }
+        .line:nth-child(6) { left: 80%; animation-delay: 7s; }
+
+        @keyframes moveHorizontal {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        @keyframes moveVertical {
+            0% { top: -100%; }
+            100% { top: 100%; }
+        }
+
+        .pulse-dot {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: #10b981;
+            border-radius: 50%;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .dot-1 { top: 30%; left: 15%; animation-delay: 0s; }
+        .dot-2 { top: 60%; left: 85%; animation-delay: 1s; }
+        .dot-3 { top: 80%; left: 40%; animation-delay: 2s; }
+
+        @keyframes pulse {
+            0%, 100% { 
+                opacity: 0.3;
+                transform: scale(1);
+            }
+            50% { 
+                opacity: 1;
+                transform: scale(1.5);
+                box-shadow: 0 0 10px #10b981;
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-white">
+    <div class="min-h-screen flex">
+        <!-- Left side - Cyber themed info panel -->
+        <div class="hidden lg:flex lg:flex-1 relative overflow-hidden">
+            <div class="absolute inset-0 bg-slate-900 grid-pattern">
+                <div class="absolute inset-0 bg-slate-900 bg-opacity-80"></div>
+                
+                <!-- Animated lines -->
+                <div class="cyber-lines">
+                    <div class="line line-horizontal"></div>
+                    <div class="line line-horizontal"></div>
+                    <div class="line line-horizontal"></div>
+                    <div class="line line-vertical"></div>
+                    <div class="line line-vertical"></div>
+                    <div class="line line-vertical"></div>
+                </div>
+                
+                <!-- Pulse dots -->
+                <div class="pulse-dot dot-1"></div>
+                <div class="pulse-dot dot-2"></div>
+                <div class="pulse-dot dot-3"></div>
+            </div>
+            
+            <div class="relative z-10 flex flex-col justify-center px-12 py-20">
+                <div class="mb-8">
+                    <div class="flex items-center mb-6">
+                        <div class="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center mr-3">
+                            <svg class="w-6 h-6 text-slate-900" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
+                            </svg>
+                        </div>
+                        <span class="text-2xl font-bold text-emerald-400">DETECTIFY</span>
+                    </div>
+                    
+                    <h2 class="text-3xl font-bold text-white mb-4">Security Operations Center</h2>
+                    <p class="text-slate-300 text-lg leading-relaxed mb-8">
+                        Advanced threat detection and vulnerability assessment platform. 
+                        Protect your digital infrastructure with enterprise-grade security tools.
+                    </p>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="flex items-center text-emerald-400">
+                        <svg class="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                        </svg>
+                        <span class="text-slate-300">Real-time threat monitoring</span>
+                    </div>
+                    <div class="flex items-center text-emerald-400">
+                        <svg class="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                        </svg>
+                        <span class="text-slate-300">Automated vulnerability scanning</span>
+                    </div>
+                    <div class="flex items-center text-emerald-400">
+                        <svg class="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                        </svg>
+                        <span class="text-slate-300">Compliance reporting</span>
+                    </div>
+                </div>
+
+                <div class="mt-12 p-4 bg-slate-800 border border-slate-700 rounded-lg">
+                    <div class="flex items-center mb-2">
+                        <div class="w-3 h-3 bg-emerald-400 rounded-full mr-2"></div>
+                        <span class="text-sm text-slate-400 font-mono">System Status</span>
+                    </div>
+                    <p class="text-emerald-400 font-mono text-sm terminal-cursor">All systems operational</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right side - Authentication forms -->
+        <div class="flex-1 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-20 xl:px-24 bg-slate-800 lg:bg-slate-800">
+            <div class="mx-auto w-full max-w-sm lg:w-96">
+                <!-- Mobile header -->
+                <div class="lg:hidden mb-8 text-center">
+                    <div class="flex items-center justify-center mb-4">
+                        <div class="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center mr-2">
+                            <svg class="w-5 h-5 text-slate-900" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
+                            </svg>
+                        </div>
+                        <span class="text-xl font-bold text-emerald-400">DETECTIFY</span>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-700 rounded-lg p-8">
+                    <div class="mb-6">
+                        <h1 id="formTitle" class="text-2xl font-bold text-white mb-2">Access Control</h1>
+                        <p id="formSubtitle" class="text-sm text-slate-400">
+                            New to the platform? 
+                            <button id="switchBtn" class="font-medium text-emerald-400 hover:text-emerald-300">Create account</button>
+                        </p>
+                    </div>
+
+                    <!-- Login Form -->
+                    <div id="loginForm">
+                        <form class="space-y-5" onsubmit="handleLogin(event)">
+                            <div>
+                                <label for="email" class="block text-sm font-medium text-slate-300 mb-2">Email Address</label>
+                                <input id="email" name="email" type="email" required 
+                                       class="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-md text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                                       placeholder="user@company.com">
+                            </div>
+
+                            <div>
+                                <label for="password" class="block text-sm font-medium text-slate-300 mb-2">Security Key</label>
+                                <input id="password" name="password" type="password" required
+                                       class="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-md text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                                       placeholder="Enter your password">
+                            </div>
+
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center">
+                                    <input id="remember_me" name="remember_me" type="checkbox" 
+                                           class="h-4 w-4 text-emerald-500 bg-slate-800 border-slate-600 rounded focus:ring-emerald-500 focus:ring-2">
+                                    <label for="remember_me" class="ml-2 block text-sm text-slate-300">Remember session</label>
+                                </div>
+
+                                <div class="text-sm">
+                                    <a href="#" class="font-medium text-emerald-400 hover:text-emerald-300">Recovery options</a>
+                                </div>
+                            </div>
+
+                            <button type="submit" 
+                                    class="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-slate-900 bg-emerald-500 hover:bg-emerald-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 focus:ring-offset-slate-900 transition-colors">
+                                Initialize Session
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Register Form -->
+                    <div id="registerForm" class="hidden">
+                        <form class="space-y-5" onsubmit="handleRegister(event)">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label for="first_name" class="block text-sm font-medium text-slate-300 mb-2">First Name</label>
+                                    <input id="first_name" name="first_name" type="text" required
+                                           class="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-md text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                                           placeholder="John">
+                                </div>
+
+                                <div>
+                                    <label for="last_name" class="block text-sm font-medium text-slate-300 mb-2">Last Name</label>
+                                    <input id="last_name" name="last_name" type="text" required
+                                           class="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-md text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                                           placeholder="Doe">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label for="reg_email" class="block text-sm font-medium text-slate-300 mb-2">Email Address</label>
+                                <input id="reg_email" name="email" type="email" required
+                                       class="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-md text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                                       placeholder="user@company.com">
+                            </div>
+
+                            <div>
+                                <label for="company" class="block text-sm font-medium text-slate-300 mb-2">Organization</label>
+                                <input id="company" name="company" type="text" required
+                                       class="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-md text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                                       placeholder="Company name">
+                            </div>
+
+                            <div>
+                                <label for="reg_password" class="block text-sm font-medium text-slate-300 mb-2">Security Key</label>
+                                <input id="reg_password" name="password" type="password" required
+                                       class="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-md text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                                       placeholder="Create secure password">
+                            </div>
+
+                            <button type="submit"
+                                    class="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-slate-900 bg-emerald-500 hover:bg-emerald-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 focus:ring-offset-slate-900 transition-colors">
+                                Create Security Account
+                            </button>
+
+                            <p class="text-xs text-slate-500 text-center">
+                                By creating an account, you agree to our 
+                                <a href="#" class="text-emerald-400 hover:text-emerald-300">Security Policy</a> and 
+                                <a href="#" class="text-emerald-400 hover:text-emerald-300">Terms of Service</a>
+                            </p>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Security notice -->
+                <div class="mt-6 p-4 bg-slate-800 border border-slate-700 rounded-lg">
+                    <div class="flex items-start">
+                        <svg class="w-5 h-5 text-yellow-400 mr-3 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                        </svg>
+                        <div>
+                            <p class="text-sm text-slate-300">This is a secure connection. All data is encrypted in transit and at rest.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isLoginMode = true;
+
+        function toggleMode() {
+            const loginForm = document.getElementById('loginForm');
+            const registerForm = document.getElementById('registerForm');
+            const title = document.getElementById('formTitle');
+            const subtitle = document.getElementById('formSubtitle');
+
+            if (isLoginMode) {
+                loginForm.classList.add('hidden');
+                registerForm.classList.remove('hidden');
+                title.textContent = 'Create Account';
+                subtitle.innerHTML = 'Already registered? <button id="switchBtn" class="font-medium text-emerald-400 hover:text-emerald-300">Sign in</button>';
+                isLoginMode = false;
+            } else {
+                registerForm.classList.add('hidden');
+                loginForm.classList.remove('hidden');
+                title.textContent = 'Access Control';
+                subtitle.innerHTML = 'New to the platform? <button id="switchBtn" class="font-medium text-emerald-400 hover:text-emerald-300">Create account</button>';
+                isLoginMode = true;
+            }
+
+            document.getElementById('switchBtn').addEventListener('click', toggleMode);
+        }
+
+        document.getElementById('switchBtn').addEventListener('click', toggleMode);
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            console.log('Login:', { email, password });
+        }
+
+        function handleRegister(e) {
+            e.preventDefault();
+            const firstName = document.getElementById('first_name').value;
+            const lastName = document.getElementById('last_name').value;
+            const email = document.getElementById('reg_email').value;
+            const company = document.getElementById('company').value;
+            const password = document.getElementById('reg_password').value;
+            
+            console.log('Register:', { firstName, lastName, email, company, password });
+        }
+    </script>
+</body>
+</html>
