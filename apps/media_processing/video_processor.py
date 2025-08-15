@@ -83,7 +83,7 @@ class VideoProcessor:
             # Resize frame for faster processing
             target_width = 640
             target_height = 480
-            
+            print("frame skip :- ",frame_skip)
             while True:
                 ret, frame = cap.read()
                 if not ret:

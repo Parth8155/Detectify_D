@@ -158,42 +158,39 @@
 </div>
 
 <!-- Download Section -->
-{% if case.processed_videos.exists %}
+{% if processed_videos %}
 <div class="bg-white rounded-lg shadow-md mt-6">
     <div class="px-6 py-4 border-b border-gray-200">
         <h3 class="text-lg font-medium text-gray-900 flex items-center">
             <svg class="w-5 h-5 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
             </svg>
-            Processed Videos
+            Summary Videos
         </h3>
     </div>
     <div class="p-6">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {% for processed_video in case.processed_videos.all %}
-            {% if processed_video.original_video.id == video.id %}
+            {% for processed_video in processed_videos %}
             <div class="border border-gray-200 rounded-lg p-4">
                 <h4 class="text-sm font-medium text-gray-900 mb-2">Summary Video</h4>
                 <p class="text-sm text-gray-500 mb-3">
                     Duration: {{ processed_video.summary_duration|floatformat:1 }}s • 
-                    {{ processed_video.total_detections }} detections
+                    {{ processed_video.total_detections }} detections • 
+                    Created: {{ processed_video.created_at|date:"M d, Y H:i" }}
                 </p>
                 <a href="{% url 'cases:download_processed_video' case.id processed_video.id %}" 
                    class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                     </svg>
-                    Download
+                    Download Summary Video
                 </a>
             </div>
-            {% endif %}
             {% endfor %}
         </div>
     </div>
 </div>
-{% endif %}
-
-{% else %}
+{% endif %}{% else %}
 <!-- No Detections -->
 <div class="bg-white rounded-lg shadow-md">
     <div class="text-center py-12">

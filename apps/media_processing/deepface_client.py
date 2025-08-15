@@ -129,10 +129,10 @@ class DeepFaceClient(FacialRecognition):
                         # Extract features from cropped face
                         embedding = self.deepface.represent(
                             img_path=temp_face_path,
-                            model_name='Facenet512',
+                            model_name='VGG-Face',
                             enforce_detection=False  # We already detected and cropped
                         )
-                        
+                        print("Vgg")
                         # Convert to numpy array and ensure correct shape
                         features = np.array(embedding[0]['embedding'])
                         

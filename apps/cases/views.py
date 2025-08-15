@@ -439,6 +439,9 @@ def video_results(request, case_id, video_id):
     
     detections = DetectionResult.objects.filter(video=video).select_related('suspect')
     
+    # Get processed/summary videos for this video
+    processed_videos = ProcessedVideo.objects.filter(original_video=video)
+    
     # Group detections by suspect
     detections_by_suspect = {}
     for detection in detections:
@@ -455,6 +458,7 @@ def video_results(request, case_id, video_id):
         'video': video,
         'detections_by_suspect': detections_by_suspect,
         'total_detections': detections.count(),
+        'processed_videos': processed_videos,
     }
     
     return render(request, 'cases/video_results.html', context)

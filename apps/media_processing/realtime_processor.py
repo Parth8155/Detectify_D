@@ -419,7 +419,7 @@ class VideoStreamProcessor:
         try:
             # Import video processor for summary creation
             from .video_processor import VideoProcessor
-            import os
+            import tempfile
             from django.conf import settings
             
             video_processor = VideoProcessor()
@@ -428,25 +428,22 @@ class VideoStreamProcessor:
             unique_timestamps = sorted(list(set(self.detection_timestamps)))
             logger.info(f"Creating summary video with {len(unique_timestamps)} detection timestamps")
             
-            # Generate output path for summary video
+            # Generate temporary file for summary video
+            temp_dir = tempfile.mkdtemp()
             case = self.video_obj.case
             video_name = f"video_{self.video_obj.id}"
             summary_filename = f"{video_name}_summary.mp4"
-            summary_path = os.path.join('processed', 'videos', summary_filename)
-            full_summary_path = os.path.join('media', summary_path)
-            
-            # Ensure directory exists
-            os.makedirs(os.path.dirname(full_summary_path), exist_ok=True)
+            temp_summary_path = os.path.join(temp_dir, summary_filename)
             
             # Create summary video using video_processor
             success = video_processor.create_summary_video(
                 self.video_path,
                 unique_timestamps,
-                full_summary_path
+                temp_summary_path
             )
             
             if success:
-                logger.info(f"Summary video created successfully at {full_summary_path}")
+                logger.info(f"Summary video created successfully at {temp_summary_path}")
                 
                 # Create ProcessedVideo record and save to database
                 processed_video = self.ProcessedVideo(
@@ -457,13 +454,27 @@ class VideoStreamProcessor:
                 )
                 
                 # Save processed video data to database
-                processed_video.save_processed_from_file(full_summary_path, summary_filename)
+                processed_video.save_processed_from_file(temp_summary_path, summary_filename)
                 processed_video.save()
                 
                 logger.info(f"ProcessedVideo record created with ID {processed_video.id}")
+                
+                # Clean up temporary file
+                try:
+                    os.remove(temp_summary_path)
+                    os.rmdir(temp_dir)
+                    logger.info(f"Cleaned up temporary file {temp_summary_path}")
+                except Exception as e:
+                    logger.warning(f"Could not clean up temporary file {temp_summary_path}: {e}")
+                    
                 return processed_video
             else:
                 logger.error("Failed to create summary video")
+                # Clean up temporary directory even if video creation failed
+                try:
+                    os.rmdir(temp_dir)
+                except Exception:
+                    pass
                 return None
                 
         except Exception as e:

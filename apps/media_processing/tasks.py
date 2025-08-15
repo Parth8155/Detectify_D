@@ -153,18 +153,17 @@ def process_video_task(self, video_id: int, suspect_ids: List[int]):
         summary_video_path = None
         if detections:
             timestamps = [d['timestamp'] for d in detections]
-            # Generate output path
+            # Generate temporary file for summary video
+            temp_dir = tempfile.mkdtemp()
             video_name = f"video_{video.id}"
             summary_filename = f"{video_name}_summary.mp4"
-            summary_path = os.path.join('processed', 'videos', summary_filename)
-            full_summary_path = os.path.join('media', summary_path)
-            # Ensure directory exists
-            os.makedirs(os.path.dirname(full_summary_path), exist_ok=True)
+            temp_summary_path = os.path.join(temp_dir, summary_filename)
+            
             # Create summary video
             success = video_processor.create_summary_video(
                 video_path, 
                 timestamps, 
-                full_summary_path
+                temp_summary_path
             )
             if success:
                 # Create ProcessedVideo record and save to database
@@ -174,9 +173,16 @@ def process_video_task(self, video_id: int, suspect_ids: List[int]):
                     total_detections=len(detections),
                     summary_duration=len(timestamps) * (video_processor.buffer_before + video_processor.buffer_after)
                 )
-                processed_video.save_processed_from_file(full_summary_path, 'processed_video.mp4')
+                processed_video.save_processed_from_file(temp_summary_path, summary_filename)
                 processed_video.save()
                 summary_video_path = f"/cases/video/{processed_video.id}/"
+                
+                # Clean up temporary file
+                try:
+                    os.remove(temp_summary_path)
+                    os.rmdir(temp_dir)
+                except Exception as e:
+                    print(f"Warning: Could not clean up temporary file {temp_summary_path}: {e}")
         # Update completion status
         video.processed = True
         video.processing_completed_at = timezone.now()
