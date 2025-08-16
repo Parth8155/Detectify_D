@@ -14,6 +14,7 @@ from .forms import CaseForm, SuspectImageForm, VideoUploadForm
 
 # Import streaming views
 from ..media_processing.streaming_views import stream_stats, stop_stream
+from apps.media_processing.tasks import process_video_task
 
 
 # --- REVERT TO SYNC VIEWS ---
@@ -328,7 +329,6 @@ def process_video(request, case_id, video_id):
     video.processing_started_at = timezone.now()
     video.save()
 
-    from apps.media_processing.tasks import process_video_task
     try:
         # Try to run as async task if possible
         if hasattr(process_video_task, 'delay'):

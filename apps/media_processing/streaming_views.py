@@ -1,192 +1,108 @@
 """
-Django views for real-time video streaming with face detection.
-Supports both MJPEG and WebSocket streaming.
+Updated Django views for real-time video streaming using UnifiedVideoProcessor.
+This replaces the custom streaming logic with the unified approach from tasks.py
 """
 
 import os
 import json
 import logging
-from django.http import StreamingHttpResponse, HttpResponse, JsonResponse, Http404
+import asyncio
+import tempfile
+from django.http import StreamingHttpResponse, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
-from django.conf import settings
 from django.utils import timezone
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.exceptions import DenyConnection
-import asyncio
-import threading
-from typing import AsyncGenerator
 
 from ..cases.models import Case, VideoUpload
-from .realtime_processor import streaming_sessions, VideoStreamProcessor
+from .tasks import (
+    get_unified_processor,  # Use singleton to avoid repeated initialization
+    get_suspect_data_for_processing,
+    process_single_frame_for_websocket
+)
 
 logger = logging.getLogger(__name__)
 
+# Global processor instance to avoid repeated initialization during WebSocket sessions
+_processor_instance = None
 
-def _get_suspect_data(case_id: int):
-    """Helper function to get suspect encodings and mapping for a case.
-    
-    Args:
-        case_id: Case ID
-        
-    Returns:
-        Tuple of (suspect_encodings, suspect_mapping)
-    """
-    try:
-        from ..cases.models import SuspectImage
-        import json
-        import numpy as np
-        
-        suspects = SuspectImage.objects.filter(case_id=case_id, processed=True)
-        suspect_encodings = []
-        suspect_mapping = {}
-        
-        for i, suspect in enumerate(suspects):
-            if suspect.face_encoding:
-                try:
-                    encoding = json.loads(suspect.face_encoding) if isinstance(suspect.face_encoding, str) else suspect.face_encoding
-                    suspect_encodings.append(np.array(encoding))
-                    suspect_mapping[i] = suspect
-                except Exception as e:
-                    logger.error(f"Error loading suspect encoding for suspect {suspect.id}: {e}")
-        
-        logger.info(f"Loaded {len(suspect_encodings)} suspect encodings for case {case_id}")
-        return suspect_encodings, suspect_mapping
-    
-    except Exception as e:
-        logger.error(f"Error loading suspect data for case {case_id}: {e}")
-        return [], {}
+def get_streaming_processor():
+    """Get or create a cached processor instance for streaming"""
+    global _processor_instance
+    if _processor_instance is None:
+        _processor_instance = get_unified_processor()
+    return _processor_instance
 
-
-def _mark_video_processed_sync(case_id: int, video_id: int):
-    """Synchronously mark a VideoUpload as processed and update the Case status.
-
-    This helper is safe to call from background threads or executors.
-    """
-    try:
-        from ..cases.models import Case, VideoUpload
-
-        video = VideoUpload.objects.filter(id=video_id, case_id=case_id).first()
-        if not video:
-            logger.debug(f"_mark_video_processed_sync: video not found case={case_id} video={video_id}")
-            return
-
-        if not video.processed:
-            video.processed = True
-            video.processing_completed_at = timezone.now()
-            video.save()
-
-            try:
-                case = video.case
-                case.status = 'completed'
-                case.save()
-            except Exception:
-                logger.exception('Failed to update case status after marking video processed')
-        else:
-            logger.debug(f"_mark_video_processed_sync: video already marked processed id={video_id}")
-    except Exception:
-        logger.exception('Error marking video as processed')
 
 @login_required
 @require_http_methods(["GET"])
 def stream_stats(request, case_id: int, video_id: int):
-    """Get streaming statistics for a video.
-    
-    Args:
-        request: Django request object
-        case_id: Case ID
-        video_id: Video ID
-        
-    Returns:
-        JsonResponse with streaming statistics
-    """
+    """Get streaming statistics"""
     try:
-        # Get video object
         case = get_object_or_404(Case, id=case_id, user=request.user)
         video = get_object_or_404(VideoUpload, id=video_id, case=case)
         
-        # Get session
-        session_id = f"mjpeg_{case_id}_{video_id}_{request.user.id}"
-        processor = streaming_sessions.get_session(session_id)
+        # For now, return basic stats
+        # In a real implementation, you might track these in Redis or similar
+        stats = {
+            'processed_frames': 0,
+            'faces_detected': 0,
+            'suspects_detected': 0,
+            'fps': 30,
+            'is_streaming': False
+        }
         
-        if not processor:
-            session_id = f"ws_{case_id}_{video_id}_{request.user.id}"
-            processor = streaming_sessions.get_session(session_id)
+        return JsonResponse({
+            'status': 'success',
+            'stats': stats
+        })
         
-        if processor:
-            stats = processor.get_stats()
-            return JsonResponse({
-                'status': 'success',
-                'stats': stats,
-                'is_streaming': processor.is_streaming
-            })
-        else:
-            return JsonResponse({
-                'status': 'success',
-                'stats': {
-                    'total_frames': 0,
-                    'processed_frames': 0,
-                    'faces_detected': 0,
-                    'fps': 0,
-                    'progress': 0,
-                    'avg_faces_per_frame': 0
-                },
-                'is_streaming': False
-            })
-            
     except Exception as e:
         logger.error(f"Stats error: {e}")
-        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+        return JsonResponse({
+            'status': 'error',
+            'error': str(e)
+        }, status=500)
 
 
 @login_required
 @require_http_methods(["POST"])
 @csrf_exempt
 def stop_stream(request, case_id: int, video_id: int):
-    """Stop streaming for a video.
-    
-    Args:
-        request: Django request object
-        case_id: Case ID
-        video_id: Video ID
-        
-    Returns:
-        JsonResponse with operation status
-    """
+    """Stop streaming for a specific video"""
     try:
-        # Get video object
         case = get_object_or_404(Case, id=case_id, user=request.user)
         video = get_object_or_404(VideoUpload, id=video_id, case=case)
         
-        # Stop sessions
-        session_ids = [
-            f"mjpeg_{case_id}_{video_id}_{request.user.id}",
-            f"ws_{case_id}_{video_id}_{request.user.id}"
-        ]
-        
-        for session_id in session_ids:
-            processor = streaming_sessions.get_session(session_id)
-            if processor:
-                processor.stop_streaming()
-                streaming_sessions.remove_session(session_id)
+        # Mark video as processed if not already
+        if not video.processed:
+            video.processed = True
+            video.processing_completed_at = timezone.now()
+            video.save()
         
         return JsonResponse({
             'status': 'success',
-            'message': 'Streaming stopped successfully'
+            'message': 'Stream stopped'
         })
         
     except Exception as e:
         logger.error(f"Stop stream error: {e}")
-        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+        return JsonResponse({
+            'status': 'error',
+            'error': str(e)
+        }, status=500)
 
 
 class VideoStreamConsumer(AsyncWebsocketConsumer):
-    """WebSocket consumer for real-time video streaming."""
+    """
+    WebSocket consumer using UnifiedVideoProcessor for consistent processing
+    """
     
     async def connect(self):
-        """Handle WebSocket connection."""
+        """Handle WebSocket connection"""
         try:
             # Get parameters from URL
             self.case_id = self.scope['url_route']['kwargs']['case_id']
@@ -200,7 +116,6 @@ class VideoStreamConsumer(AsyncWebsocketConsumer):
             
             # Validate access to case and video
             try:
-                from ..cases.models import Case, VideoUpload
                 case = await asyncio.get_event_loop().run_in_executor(
                     None, 
                     lambda: Case.objects.get(id=self.case_id, user=self.user)
@@ -209,193 +124,556 @@ class VideoStreamConsumer(AsyncWebsocketConsumer):
                     None,
                     lambda: VideoUpload.objects.get(id=self.video_id, case=case)
                 )
+                
+                self.case = case
+                self.video = video
+                
             except Exception as e:
                 logger.error(f"Invalid case/video access: {e}")
                 await self.close()
                 return
             
-            # Write temp video file for streaming (run in executor)
-            loop = asyncio.get_event_loop()
-            try:
-                temp_video_path = await loop.run_in_executor(None, video.write_temp_file)
-                # Get suspect data for recognition
-                suspect_encodings, suspect_mapping = await loop.run_in_executor(
-                    None, _get_suspect_data, self.case_id
-                )
-                # Store for use in streaming
-                self.suspect_encodings = suspect_encodings
-                self.suspect_mapping = suspect_mapping
-                self.video = video
-            except Exception as e:
-                logger.error(f"Failed to write temp video file for WebSocket: {e}")
-                await self.close()
-                return
-
             # Accept connection
             await self.accept()
-
-            # Create session
-            self.session_id = f"ws_{self.case_id}_{self.video_id}_{self.user.id}"
-            self.temp_video_path = temp_video_path
-
-            # Start streaming in background task
-            self.streaming_task = asyncio.create_task(self.start_streaming(self.temp_video_path))
+            
+            # Setup and start processing
+            await self.setup_processing()
             
         except Exception as e:
             logger.error(f"WebSocket connection error: {e}")
             await self.close()
     
     async def disconnect(self, close_code):
-        """Handle WebSocket disconnection."""
-        try:
-            # Cancel streaming task
-            if hasattr(self, 'streaming_task'):
-                self.streaming_task.cancel()
-
-            # Remove session
-            if hasattr(self, 'session_id'):
-                await asyncio.get_event_loop().run_in_executor(
-                    None,
-                    streaming_sessions.remove_session,
-                    self.session_id
-                )
-
-            # Cleanup temp video file if created
-            if hasattr(self, 'temp_video_path'):
-                try:
-                    await asyncio.get_event_loop().run_in_executor(None, lambda: os.remove(self.temp_video_path) if os.path.exists(self.temp_video_path) else None)
-                except Exception:
-                    logger.exception('Failed to remove temp video file during disconnect')
-                
-        except Exception as e:
-            logger.error(f"WebSocket disconnect error: {e}")
+        """Handle WebSocket disconnection"""
+        # Clean up temporary files
+        if hasattr(self, 'temp_video_path') and os.path.exists(self.temp_video_path):
+            try:
+                os.remove(self.temp_video_path)
+            except Exception as e:
+                logger.error(f"Error cleaning up temp file: {e}")
+        
+        logger.info(f"WebSocket disconnected: {close_code}")
     
     async def receive(self, text_data):
-        """Handle messages from WebSocket."""
+        """Handle messages from WebSocket"""
         try:
             data = json.loads(text_data)
             message_type = data.get('type')
             
             if message_type == 'start_stream':
-                # Stream control - already handled in connect
                 await self.send(text_data=json.dumps({
                     'type': 'status',
                     'message': 'Streaming started'
                 }))
                 
             elif message_type == 'stop_stream':
-                # Stop streaming
-                if hasattr(self, 'streaming_task'):
-                    self.streaming_task.cancel()
-                
                 await self.send(text_data=json.dumps({
                     'type': 'status',
                     'message': 'Streaming stopped'
                 }))
+                await self.close()
                 
             elif message_type == 'get_stats':
-                # Get current statistics
-                processor = await asyncio.get_event_loop().run_in_executor(
-                    None,
-                    streaming_sessions.get_session,
-                    self.session_id
-                )
+                # Send current statistics
+                stats = {
+                    'processed_frames': getattr(self, 'frame_count', 0),
+                    'faces_detected': getattr(self, 'total_faces', 0),
+                    'suspects_detected': getattr(self, 'total_suspects', 0),
+                    'fps': 30
+                }
+                await self.send(text_data=json.dumps({
+                    'type': 'stats',
+                    'data': stats
+                }))
                 
-                if processor:
-                    stats = await asyncio.get_event_loop().run_in_executor(
-                        None,
-                        processor.get_stats
-                    )
-                    await self.send(text_data=json.dumps({
-                        'type': 'stats',
-                        'data': stats
-                    }))
-                    
         except Exception as e:
             logger.error(f"WebSocket receive error: {e}")
     
-    async def start_streaming(self, video_path: str):
-        """Start video streaming with face detection.
-        
-        Args:
-            video_path: Path to the video file
-        """
+    async def setup_processing(self):
+        """Setup video processing with UnifiedVideoProcessor"""
         try:
-            # Create processor
-            detection_model_path = os.path.join(settings.BASE_DIR, "face_detection_yunet_2023mar.onnx")
-            
-            processor = await asyncio.get_event_loop().run_in_executor(
-                None,
-                streaming_sessions.create_session,
-                self.session_id,
-                video_path,
-                detection_model_path,
-                self.video,  # Pass video object for saving DetectionResult
-                self.suspect_encodings,
-                self.suspect_mapping
+            # Get suspect data
+            suspect_encodings, suspect_mapping = await asyncio.get_event_loop().run_in_executor(
+                None, get_suspect_data_for_processing, self.case_id
             )
             
-            # Stream frames
-            def frame_generator():
-                return processor.generate_websocket_frames(target_fps=30, quality=80)
+            self.suspect_encodings = suspect_encodings
+            self.suspect_mapping = suspect_mapping
             
-            frame_iter = await asyncio.get_event_loop().run_in_executor(
-                None,
-                frame_generator
+            # Create temporary video file
+            temp_video_path = await asyncio.get_event_loop().run_in_executor(
+                None, self.video.write_temp_file
             )
+            self.temp_video_path = temp_video_path
             
-            # Send frames to WebSocket
-            for frame_data in frame_iter:
-                if self.streaming_task.cancelled():
-                    break
-                    
-                await self.send(text_data=json.dumps(frame_data))
-                
-                # Small delay to prevent overwhelming the connection
-                await asyncio.sleep(0.01)
+            # Start processing
+            await self.start_processing()
             
-            # Send completion message
-            await self.send(text_data=json.dumps({
-                'type': 'completed',
-                'message': 'Video processing completed'
-            }))
-
-            # Save any pending detections to database before marking complete
-            def _save_detections():
-                try:
-                    processor = streaming_sessions.get_session(self.session_id)
-                    if processor and hasattr(processor, 'save_pending_detections'):
-                        saved_count = processor.save_pending_detections()
-                        logger.info(f"Saved {saved_count} pending detections for video {self.video_id}")
-                        return saved_count
-                    return 0
-                except Exception as e:
-                    logger.error(f"Error saving pending detections: {e}")
-                    return 0
-
-            # Save detections in executor to avoid async issues
-            try:
-                saved_count = await asyncio.get_event_loop().run_in_executor(None, _save_detections)
-                logger.info(f"Detection save completed: {saved_count} detections saved")
-            except Exception:
-                logger.exception('Failed to save pending detections after WebSocket stream')
-
-            # Mark video processed in DB (run in executor so it's synchronous DB call)
-            try:
-                await asyncio.get_event_loop().run_in_executor(None, _mark_video_processed_sync, int(self.case_id), int(self.video_id))
-            except Exception:
-                logger.exception('Failed to mark video processed after WebSocket stream')
-
-            # Note: We don't need to run additional batch processing here since 
-            # DetectionResult objects are already being saved during streaming
-            # This makes the results immediately available on the results page
-            logger.info(f"WebSocket streaming completed for video {self.video_id}. Results should be immediately available.")
-            
-        except asyncio.CancelledError:
-            logger.info("Streaming task cancelled")
         except Exception as e:
-            logger.error(f"Streaming error: {e}")
+            logger.error(f"Setup processing error: {e}")
             await self.send(text_data=json.dumps({
                 'type': 'error',
-                'message': f'Streaming error: {str(e)}'
+                'message': f'Setup error: {str(e)}'
             }))
+            await self.close()
+    
+    async def start_processing(self):
+        """Start ultra-fast video processing optimized for WebSocket streaming"""
+        try:
+            # Use direct processing instead of the complex callback approach
+            from .tasks import get_unified_processor
+            from apps.cases.models import SuspectImage
+            import cv2
+            import base64
+            import numpy as np
+            import json as json_module
+            
+            # Get suspects
+            suspects = await asyncio.get_event_loop().run_in_executor(
+                None, lambda: list(self.case.suspect_images.filter(processed=True))
+            )
+            if not suspects:
+                await self.send_error("No processed suspects found in case")
+                return
+            
+            # Get processor singleton
+            processor = get_unified_processor()
+            
+            # Extract suspect encodings
+            suspect_encodings = []
+            suspect_mapping = {}
+            
+            for i, suspect in enumerate(suspects):
+                if suspect.face_encoding:
+                    encoding = json_module.loads(suspect.face_encoding) if isinstance(suspect.face_encoding, str) else suspect.face_encoding
+                    suspect_encodings.append(np.array(encoding))
+                    suspect_mapping[i] = suspect
+            
+            if not suspect_encodings:
+                await self.send_error("No valid suspect encodings found")
+                return
+            
+            # Process video with optimized parameters
+            temp_dir = tempfile.gettempdir()
+            video_path = os.path.join(temp_dir, f"temp_video_{self.video.id}.{self.video.video_type}")
+            
+            # Save video to temp file
+            video_data = await asyncio.get_event_loop().run_in_executor(
+                None, self.video.get_video_data
+            )
+            with open(video_path, 'wb') as f:
+                f.write(video_data)
+            
+            try:
+                cap = cv2.VideoCapture(video_path)
+                if not cap.isOpened():
+                    raise ValueError(f"Could not open video: {video_path}")
+                
+                fps = cap.get(cv2.CAP_PROP_FPS)
+                total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                
+                # Ultra-fast processing: Skip many frames (every 60 frames = ~2 seconds)
+                frame_skip = max(60, int(fps * 2))
+                frame_number = 0
+                detections = []
+                frames_sent = 0
+                
+                await self.send(text_data=json_module.dumps({
+                    'type': 'status',
+                    'message': f'Starting fast processing: {total_frames} frames, processing every {frame_skip} frames'
+                }))
+                
+                while cap.isOpened() and frames_sent < 20:  # Limit to 20 frames max
+                    ret, frame = cap.read()
+                    if not ret:
+                        break
+                    
+                    # Skip frames for speed
+                    if frame_number % frame_skip != 0:
+                        frame_number += 1
+                        continue
+                    
+                    timestamp = frame_number / fps if fps > 0 else 0
+                    
+                    # Resize frame for speed (320p processing)
+                    height, width = frame.shape[:2]
+                    if width > 320:
+                        scale = 320 / width
+                        new_width = 320
+                        new_height = int(height * scale)
+                        frame_small = cv2.resize(frame, (new_width, new_height))
+                    else:
+                        frame_small = frame
+                        scale = 1.0
+                    
+                    # Detect faces
+                    detected_faces = processor.face_client.detect_faces_in_frame(frame_small)
+                    
+                    if detected_faces:
+                        frames_sent += 1
+                        frame_display = frame.copy()
+                        suspects_found = 0
+                        
+                        # Process first face only for speed
+                        for bounding_box, confidence in detected_faces[:1]:  # Only first face
+                            if scale != 1.0:
+                                x, y, w, h = [int(coord / scale) for coord in bounding_box]
+                            else:
+                                x, y, w, h = bounding_box
+                            
+                            if w < 60 or h < 60:
+                                continue
+                            
+                            # Draw detection
+                            cv2.rectangle(frame_display, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                            
+                            # Quick face recognition
+                            try:
+                                face_region = frame[y:y+h, x:x+w]
+                                if face_region.size > 0:
+                                    face_encoding = processor.face_client.extract_features_from_array(face_region)
+                                    
+                                    # Compare with suspects
+                                    for i, suspect_encoding in enumerate(suspect_encodings):
+                                        similarity = processor.face_client.compare_faces(face_encoding, suspect_encoding)
+                                        
+                                        if similarity >= 0.8:  # Lower threshold for speed
+                                            suspects_found += 1
+                                            cv2.rectangle(frame_display, (x, y), (x + w, y + h), (0, 0, 255), 3)
+                                            cv2.putText(frame_display, 'SUSPECT', (x, y-10), 
+                                                       cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+                                            
+                                            detections.append({
+                                                'timestamp': timestamp,
+                                                'confidence': similarity,
+                                                'suspect_index': i,
+                                                'frame_number': frame_number
+                                            })
+                                            
+                                            # Store detection in database for results page
+                                            def save_detection():
+                                                try:
+                                                    from apps.cases.models import DetectionResult, SuspectImage
+                                                    # Get the suspect image
+                                                    suspect_images = list(self.case.suspect_images.all())
+                                                    if i < len(suspect_images):
+                                                        suspect = suspect_images[i]
+                                                        
+                                                        # Create detection result
+                                                        DetectionResult.objects.create(
+                                                            video=self.video,
+                                                            suspect=suspect,
+                                                            timestamp=timestamp,
+                                                            confidence=similarity,
+                                                            frame_number=frame_number,
+                                                            bounding_box=[int(x), int(y), int(w), int(h)]
+                                                        )
+                                                except Exception as e:
+                                                    logger.error(f"Error saving detection: {e}")
+                                            
+                                            # Run database save in executor (don't await it to keep processing fast)
+                                            asyncio.get_event_loop().run_in_executor(None, save_detection)
+                                            
+                                            break
+                            except Exception as e:
+                                print(f"Face recognition error: {str(e)}")
+                        
+                        # Send frame (compressed)
+                        height, width = frame_display.shape[:2]
+                        if width > 480:
+                            display_frame = cv2.resize(frame_display, (480, int(height * 480 / width)))
+                        else:
+                            display_frame = frame_display
+                        
+                        _, buffer = cv2.imencode('.jpg', display_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 60])
+                        frame_b64 = base64.b64encode(buffer).decode('utf-8')
+                        
+                        progress = (frame_number / total_frames * 100) if total_frames > 0 else 0
+                        
+                        await self.send(text_data=json_module.dumps({
+                            'type': 'frame',
+                            'data': frame_b64,
+                            'timestamp': timestamp,
+                            'frame_number': frame_number,
+                            'faces_detected': len(detected_faces),
+                            'suspects_detected': suspects_found,
+                            'stats': {
+                                'progress': progress,
+                                'processed_frames': frames_sent,
+                                'total_frames': total_frames,
+                                'total_detections': len(detections)
+                            }
+                        }))
+                        
+                        # Small delay to prevent overwhelming
+                        await asyncio.sleep(0.1)
+                    
+                    frame_number += 1
+                
+                cap.release()
+                
+                # Generate summary video if detections found
+                if detections:
+                    await self.send(text_data=json_module.dumps({
+                        'type': 'status',
+                        'message': f'Generating summary video from {len(detections)} detections...'
+                    }))
+                    
+                    try:
+                        # Create summary video
+                        summary_video_path = os.path.join(temp_dir, f"summary_{self.video.id}.mp4")
+                        
+                        # Use processor to create focused summary video
+                        success = await asyncio.get_event_loop().run_in_executor(
+                            None,
+                            processor.create_summary_video_from_detections,
+                            video_path,
+                            detections,
+                            summary_video_path
+                        )
+                        
+                        # If focused summary fails, try individual clips approach
+                        if not success:
+                            await self.send(text_data=json_module.dumps({
+                                'type': 'status',
+                                'message': 'Trying alternative summary creation method...'
+                            }))
+                            
+                            success = await asyncio.get_event_loop().run_in_executor(
+                                None,
+                                processor.create_individual_detection_clips,
+                                video_path,
+                                detections,
+                                summary_video_path
+                            )
+                        
+                        if success and os.path.exists(summary_video_path):
+                            # Read summary video data
+                            with open(summary_video_path, 'rb') as f:
+                                summary_data = f.read()
+                            
+                            # Save to database
+                            from apps.cases.models import ProcessedVideo
+                            
+                            def save_summary_video():
+                                processed_video, created = ProcessedVideo.objects.get_or_create(
+                                    original_video=self.video,
+                                    case=self.case,
+                                    defaults={
+                                        'processed_data': summary_data,
+                                        'processed_name': f"summary_{self.video.id}_{timezone.now().strftime('%Y%m%d_%H%M%S')}.mp4",
+                                        'processed_type': 'mp4',
+                                        'processed_size': len(summary_data),
+                                        'total_detections': len(detections),
+                                        'summary_duration': 0.0,  # Will be calculated by video processor if needed
+                                    }
+                                )
+                                
+                                if not created:
+                                    processed_video.processed_data = summary_data
+                                    processed_video.processed_size = len(summary_data)
+                                    processed_video.total_detections = len(detections)
+                                    processed_video.save()
+                                
+                                return processed_video
+                            
+                            processed_video = await asyncio.get_event_loop().run_in_executor(
+                                None, save_summary_video
+                            )
+                            
+                            # Clean up temp summary video
+                            os.remove(summary_video_path)
+                            
+                            # Send summary completion message
+                            await self.send(text_data=json_module.dumps({
+                                'type': 'summary_complete',
+                                'total_detections': len(detections),
+                                'suspects_found': len(set(d['suspect_index'] for d in detections)),
+                                'summary_video_id': processed_video.id,
+                                'message': 'Summary video generated successfully!'
+                            }))
+                            
+                        else:
+                            await self.send(text_data=json_module.dumps({
+                                'type': 'status',
+                                'message': 'Warning: Could not generate summary video'
+                            }))
+                            
+                    except Exception as summary_error:
+                        logger.error(f"Summary video generation error: {summary_error}")
+                        await self.send(text_data=json_module.dumps({
+                            'type': 'status',
+                            'message': f'Summary video generation failed: {str(summary_error)}'
+                        }))
+                
+                # Mark video as processed
+                def mark_processed():
+                    self.video.processed = True
+                    self.video.processing_completed_at = timezone.now()
+                    self.video.save()
+                    
+                    self.case.status = 'completed'
+                    self.case.save()
+                
+                await asyncio.get_event_loop().run_in_executor(None, mark_processed)
+                
+            finally:
+                if os.path.exists(video_path):
+                    os.remove(video_path)
+            
+            # Send completion
+            await self.send(text_data=json_module.dumps({
+                'type': 'completed',
+                'message': f'Fast processing completed! Found {len(detections)} detections.',
+                'total_detections': len(detections),
+                'frames_sent': frames_sent
+            }))
+                
+        except Exception as e:
+            logger.error(f"WebSocket processing error: {e}")
+            await self.send_error(f"Processing failed: {str(e)}")
+
+    async def send_error(self, error_message: str):
+        """Send error message to WebSocket client"""
+        await self.send(text_data=json.dumps({
+            'type': 'error',
+            'message': error_message
+        }))
+    
+    async def send_frame_data(self, frame_data):
+        """Send frame data to WebSocket client"""
+        try:
+            await self.send(text_data=json.dumps(frame_data))
+        except Exception as e:
+            logger.error(f"Error sending frame data: {e}")
+    
+    def mark_video_processed(self):
+        """Mark video as processed in database"""
+        try:
+            self.video.processed = True
+            self.video.processing_completed_at = timezone.now()
+            self.video.save()
+            
+            case = self.video.case
+            case.status = 'completed'
+            case.save()
+            
+        except Exception as e:
+            logger.error(f"Error marking video processed: {e}")
+
+
+class FrameByFrameVideoStreamConsumer(AsyncWebsocketConsumer):
+    """
+    Alternative WebSocket consumer for frame-by-frame processing
+    This gives more control over individual frame processing
+    """
+    
+    async def connect(self):
+        """Handle WebSocket connection"""
+        try:
+            # Same setup as above
+            self.case_id = self.scope['url_route']['kwargs']['case_id']
+            self.video_id = self.scope['url_route']['kwargs']['video_id']
+            self.user = self.scope['user']
+            
+            if not self.user.is_authenticated:
+                await self.close()
+                return
+            
+            # Validate access
+            case = await asyncio.get_event_loop().run_in_executor(
+                None, lambda: Case.objects.get(id=self.case_id, user=self.user)
+            )
+            video = await asyncio.get_event_loop().run_in_executor(
+                None, lambda: VideoUpload.objects.get(id=self.video_id, case=case)
+            )
+            
+            self.case = case
+            self.video = video
+            
+            await self.accept()
+            await self.setup_and_stream()
+            
+        except Exception as e:
+            logger.error(f"Connection error: {e}")
+            await self.close()
+    
+    async def setup_and_stream(self):
+        """Setup and start frame-by-frame streaming"""
+        try:
+            # Get suspect data
+            suspect_encodings, suspect_mapping = await asyncio.get_event_loop().run_in_executor(
+                None, get_suspect_data_for_processing, self.case_id
+            )
+            
+            # Create temporary video file
+            temp_video_path = await asyncio.get_event_loop().run_in_executor(
+                None, self.video.write_temp_file
+            )
+            
+            # Process frame by frame
+            import cv2
+            cap = cv2.VideoCapture(temp_video_path)
+            fps = cap.get(cv2.CAP_PROP_FPS)
+            frame_number = 0
+            
+            try:
+                while cap.isOpened():
+                    ret, frame = cap.read()
+                    if not ret:
+                        break
+                    
+                    timestamp = frame_number / fps if fps > 0 else 0
+                    
+                    # Process single frame
+                    frame_b64, faces_count, suspects_count = await asyncio.get_event_loop().run_in_executor(
+                        None,
+                        process_single_frame_for_websocket,
+                        frame,
+                        frame_number,
+                        timestamp,
+                        suspect_encodings,
+                        suspect_mapping,
+                        self.video,
+                        True  # save_detections
+                    )
+                    
+                    # Send frame if it has detections
+                    if frame_b64 is not None:
+                        frame_data = {
+                            'type': 'frame',
+                            'data': frame_b64,
+                            'timestamp': timestamp,
+                            'frame_number': frame_number,
+                            'faces_detected': faces_count,
+                            'suspects_detected': suspects_count
+                        }
+                        
+                        await self.send(text_data=json.dumps(frame_data))
+                    
+                    frame_number += 1
+                    
+                    # Control frame rate
+                    await asyncio.sleep(1/30)  # ~30 FPS
+            
+            finally:
+                cap.release()
+                if os.path.exists(temp_video_path):
+                    os.remove(temp_video_path)
+            
+            # Send completion
+            await self.send(text_data=json.dumps({
+                'type': 'completed',
+                'message': 'Frame-by-frame processing completed'
+            }))
+            
+        except Exception as e:
+            logger.error(f"Frame-by-frame streaming error: {e}")
+            await self.send(text_data=json.dumps({
+                'type': 'error',
+                'message': str(e)
+            }))
+    
+    async def disconnect(self, close_code):
+        """Handle disconnection"""
+        logger.info(f"Frame-by-frame WebSocket disconnected: {close_code}")

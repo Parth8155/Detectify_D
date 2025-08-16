@@ -24,10 +24,10 @@ class VideoProcessor:
     
     def __init__(self):
         self.face_recognition_client = DeepFaceClient()
-        self.confidence_threshold = getattr(settings, 'FACE_RECOGNITION_CONFIDENCE_THRESHOLD', 0.85)
+        self.confidence_threshold = getattr(settings, 'FACE_RECOGNITION_CONFIDENCE_THRESHOLD', 0.80)
         self.frame_interval = getattr(settings, 'FRAME_SAMPLING_INTERVAL', 0.25)
-        self.buffer_before = getattr(settings, 'VIDEO_CLIP_BUFFER_BEFORE', 2)
-        self.buffer_after = getattr(settings, 'VIDEO_CLIP_BUFFER_AFTER', 3)
+        self.buffer_before = getattr(settings, 'VIDEO_CLIP_BUFFER_BEFORE', 0.5)
+        self.buffer_after = getattr(settings, 'VIDEO_CLIP_BUFFER_AFTER', 0.5)
         self.frame_skip = getattr(settings, 'VIDEO_FRAME_SKIP', 5)  # Analyze every 10th frame for speed
         self.max_workers = getattr(settings, 'VIDEO_PROCESSING_WORKERS', 2)  # Limit concurrent threads
     
@@ -338,6 +338,199 @@ class VideoProcessor:
         except Exception as e:
             print(f"Error creating thumbnail: {str(e)}")
             return ""
+    
+    def create_summary_video_from_detections(self, original_video_path: str, detections: List[Dict], output_path: str) -> bool:
+        """
+        Create a focused summary video showing only detected suspect faces
+        with minimal buffer frames around each detection
+        
+        Args:
+            original_video_path (str): Path to original video
+            detections (List[Dict]): List of detection dictionaries with frame_number
+            output_path (str): Path for output summary video
+            
+        Returns:
+            bool: Success status
+        """
+        try:
+            if not detections:
+                return False
+            
+            cap = cv2.VideoCapture(original_video_path)
+            if not cap.isOpened():
+                return False
+                
+            fps = cap.get(cv2.CAP_PROP_FPS)
+            frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            video_duration = frame_count / fps
+            
+            cap.release()
+            
+            # Convert frame numbers to timestamps with minimal buffer
+            # Use very short clips (0.5 seconds before and after detection)
+            short_buffer_before = 0.5  # 0.5 seconds before detection
+            short_buffer_after = 0.5   # 0.5 seconds after detection
+            
+            timestamps_with_buffer = []
+            for detection in detections:
+                frame_number = detection.get('frame_number', 0)
+                detection_timestamp = frame_number / fps
+                
+                # Create short clip around detection
+                start_time = max(0, detection_timestamp - short_buffer_before)
+                end_time = min(video_duration, detection_timestamp + short_buffer_after)
+                
+                timestamps_with_buffer.append((start_time, end_time))
+            
+            # Remove overlapping clips and merge nearby ones
+            timestamps_with_buffer.sort(key=lambda x: x[0])
+            merged_clips = []
+            
+            for start, end in timestamps_with_buffer:
+                if not merged_clips:
+                    merged_clips.append([start, end])
+                else:
+                    last_start, last_end = merged_clips[-1]
+                    # If clips overlap or are very close (within 0.2 seconds), merge them
+                    if start <= last_end + 0.2:
+                        merged_clips[-1][1] = max(last_end, end)
+                    else:
+                        merged_clips.append([start, end])
+            
+            # Create focused summary video using moviepy
+            from moviepy.editor import VideoFileClip, concatenate_videoclips
+            
+            video = VideoFileClip(original_video_path)
+            clips = []
+            
+            for start, end in merged_clips:
+                # Keep clips short and focused
+                clip_duration = end - start
+                if clip_duration > 2.0:  # If merged clip is too long, limit it
+                    end = start + 2.0
+                
+                clip = video.subclip(start, min(end, video.duration))
+                clips.append(clip)
+            
+            if clips:
+                final_video = concatenate_videoclips(clips)
+                final_video.write_videofile(
+                    output_path,
+                    codec='libx264',
+                    audio_codec='aac',
+                    verbose=False,
+                    logger=None,
+                    preset='fast',  # Faster encoding
+                    threads=4
+                )
+                
+                # Clean up
+                video.close()
+                final_video.close()
+                for clip in clips:
+                    clip.close()
+                
+                # Log summary info
+                total_duration = sum(end - start for start, end in merged_clips)
+                print(f"Created focused summary video: {len(merged_clips)} clips, {total_duration:.1f}s total duration")
+                return True
+                
+            video.close()
+            return False
+            
+        except Exception as e:
+            print(f"Error creating focused summary video from detections: {str(e)}")
+            return False
+    
+    def create_individual_detection_clips(self, original_video_path: str, detections: List[Dict], output_path: str) -> bool:
+        """
+        Create individual short clips for each detection (alternative approach)
+        Each clip shows exactly 1 second: 0.3s before + detection frame + 0.7s after
+        
+        Args:
+            original_video_path (str): Path to original video
+            detections (List[Dict]): List of detection dictionaries
+            output_path (str): Path for output summary video
+            
+        Returns:
+            bool: Success status
+        """
+        try:
+            if not detections:
+                return False
+                
+            cap = cv2.VideoCapture(original_video_path)
+            if not cap.isOpened():
+                return False
+                
+            fps = cap.get(cv2.CAP_PROP_FPS)
+            frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            video_duration = frame_count / fps
+            cap.release()
+            
+            from moviepy.editor import VideoFileClip, concatenate_videoclips
+            
+            video = VideoFileClip(original_video_path)
+            clips = []
+            
+            # Create exactly 1-second clips for each detection
+            clip_duration = 1.0  # 1 second total
+            before_detection = 0.3  # 0.3 seconds before
+            after_detection = 0.7   # 0.7 seconds after
+            
+            processed_timestamps = set()  # Avoid duplicate clips
+            
+            for detection in detections:
+                frame_number = detection.get('frame_number', 0)
+                detection_timestamp = frame_number / fps
+                
+                # Skip if we already have a clip very close to this timestamp
+                if any(abs(detection_timestamp - ts) < 0.5 for ts in processed_timestamps):
+                    continue
+                
+                start_time = max(0, detection_timestamp - before_detection)
+                end_time = min(video_duration, detection_timestamp + after_detection)
+                
+                # Ensure minimum clip duration
+                if end_time - start_time < 0.8:
+                    continue
+                
+                clip = video.subclip(start_time, end_time)
+                clips.append(clip)
+                processed_timestamps.add(detection_timestamp)
+                
+                # Limit number of clips to avoid very long summary videos
+                if len(clips) >= 20:  # Maximum 20 clips = 20 seconds summary
+                    break
+            
+            if clips:
+                final_video = concatenate_videoclips(clips)
+                final_video.write_videofile(
+                    output_path,
+                    codec='libx264',
+                    audio_codec='aac',
+                    verbose=False,
+                    logger=None,
+                    preset='fast',
+                    threads=4
+                )
+                
+                # Clean up
+                video.close()
+                final_video.close()
+                for clip in clips:
+                    clip.close()
+                
+                total_duration = len(clips) * clip_duration
+                print(f"Created individual detection clips: {len(clips)} clips, {total_duration:.1f}s total")
+                return True
+                
+            video.close()
+            return False
+            
+        except Exception as e:
+            print(f"Error creating individual detection clips: {str(e)}")
+            return False
 
 
 def process_video_for_suspects(video_path: str, suspect_encodings: List[np.ndarray]) -> List[Dict]:

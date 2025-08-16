@@ -18,6 +18,8 @@ import os
 from typing import Generator, Optional, Tuple, Any, List, Dict
 from django.utils import timezone
 from channels.db import database_sync_to_async
+from .deepface_client import DeepFaceClient
+from ..cases.models import DetectionResult, ProcessedVideo
 
 logger = logging.getLogger(__name__)
 
@@ -181,8 +183,6 @@ class VideoStreamProcessor:
         
         # Import here to avoid circular imports
         try:
-            from .deepface_client import DeepFaceClient
-            from ..cases.models import DetectionResult, ProcessedVideo
             self.face_client = DeepFaceClient() if suspect_encodings else None
             self.DetectionResult = DetectionResult
             self.ProcessedVideo = ProcessedVideo

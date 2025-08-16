@@ -401,10 +401,23 @@
         progressBar.style.width = `${stats.progress}%`;
         currentFrame.textContent = `${stats.processed_frames} / ${stats.total_frames}`;
         streamFps.textContent = stats.fps.toFixed(1);
-        totalFaces.textContent = stats.faces_detected;
+        totalFaces.textContent = stats.total_detections || stats.faces_detected || 0;
         totalSuspects.textContent = stats.suspects_detected || 0;
-        avgFaces.textContent = stats.avg_faces_per_frame.toFixed(1);
-        processingTime.textContent = `${(stats.processing_time * 1000).toFixed(0)}ms`;
+        avgFaces.textContent = (stats.avg_faces_per_frame || 0).toFixed(1);
+        
+        // Show processing rate and elapsed time if available
+        if (stats.processing_rate) {
+            processingTime.textContent = `${stats.processing_rate.toFixed(1)} fps`;
+        } else if (stats.processing_time) {
+            processingTime.textContent = `${(stats.processing_time * 1000).toFixed(0)}ms`;
+        }
+        
+        // Update elapsed time if available
+        if (stats.elapsed_time) {
+            const minutes = Math.floor(stats.elapsed_time / 60);
+            const seconds = Math.floor(stats.elapsed_time % 60);
+            // You can add an elapsed time display element if needed
+        }
     }
     
     
@@ -474,6 +487,19 @@
                 // Wait for backend persistence to finish before redirecting.
                 // Poll the processing status endpoint for up to 30s.
                 waitForProcessingThenRedirect(30000, 1000);
+
+            } else if (data.type === 'summary_complete') {
+                // Summary video generation completed
+                const message = `Processing complete! Found ${data.total_detections} detections across ${data.suspects_found} suspect(s). Summary video generated.`;
+                showMessage(message, 'success');
+                
+                // Update UI to show completion
+                const progressBar = document.getElementById('progressBar');
+                const progressPercent = document.getElementById('progressPercent');
+                if (progressBar && progressPercent) {
+                    progressBar.style.width = '100%';
+                    progressPercent.textContent = '100.0%';
+                }
 
             } else if (data.type === 'stats') {
                 updateStats(data.data);

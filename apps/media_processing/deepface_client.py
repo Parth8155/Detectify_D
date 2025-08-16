@@ -1,5 +1,5 @@
 """
-Face Recognition Client using DeepFace
+Face Recognition Client using DeepFace with Singleton Pattern
 Implements the FacialRecognition interface as specified in the project requirements
 """
 
@@ -25,21 +25,28 @@ class FacialRecognition(ABC):
         pass
 
 
-class DeepFaceClient(FacialRecognition):
-    """
-    DeepFace implementation for face recognition
-    Uses DeepFace model with 4096-dimensional feature extraction
-    """
+class DeepFaceClientSingleton:
+    """Singleton class to ensure only one instance of DeepFace models"""
+    _instance = None
+    _initialized = False
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(DeepFaceClientSingleton, cls).__new__(cls)
+        return cls._instance
     
     def __init__(self):
-        self.model_name = "DeepFace"
-        self.input_shape = (152, 152)
-        self.output_shape = 4096
-        self._initialize_model()
-        self._initialize_yunet()
+        if not self._initialized:
+            self.model_name = "DeepFace"
+            self.input_shape = (152, 152)
+            self.output_shape = 4096
+            self._initialize_model()
+            self._initialize_yunet()
+            self._initialize_people_detector()
+            DeepFaceClientSingleton._initialized = True
     
     def _initialize_model(self):
-        """Initialize the DeepFace model"""
+        """Initialize the DeepFace model - only once"""
         try:
             from deepface import DeepFace
             self.deepface = DeepFace
@@ -50,6 +57,59 @@ class DeepFaceClient(FacialRecognition):
         except Exception as e:
             print("An unexpected error occurred while importing DeepFace:", e)
             raise
+    
+    def _initialize_yunet(self):
+        """Initialize YuNet face detector - only once"""
+        try:
+            from django.conf import settings
+            model_path = os.path.join(settings.BASE_DIR, "face_detection_yunet_2023mar.onnx")
+            
+            if not os.path.exists(model_path):
+                print(f"YuNet model not found at {model_path}")
+                self.yunet_detector = None
+                return
+                
+            self.yunet_detector = cv2.FaceDetectorYN.create(
+                model_path,
+                "",
+                (0, 0),  # Will be set dynamically
+                0.6,  # Score threshold
+                0.3,  # NMS threshold
+                5000  # Top K
+            )
+            print("YuNet face detector initialized successfully")
+        except Exception as e:
+            print(f"Error initializing YuNet: {e}")
+            self.yunet_detector = None
+    
+    def _initialize_people_detector(self):
+        """Initialize HOG people detector - only once"""
+        try:
+            self.hog_detector = cv2.HOGDescriptor()
+            self.hog_detector.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
+            print("HOG people detector initialized successfully")
+        except Exception as e:
+            print(f"Error initializing HOG detector: {e}")
+            self.hog_detector = None
+
+
+class DeepFaceClient(FacialRecognition):
+    """
+    DeepFace implementation for face recognition using singleton pattern
+    Uses DeepFace model with 4096-dimensional feature extraction
+    """
+    
+    def __init__(self):
+        # Get the singleton instance
+        self._singleton = DeepFaceClientSingleton()
+        
+        # Expose singleton properties
+        self.model_name = self._singleton.model_name
+        self.input_shape = self._singleton.input_shape
+        self.output_shape = self._singleton.output_shape
+        self.deepface = self._singleton.deepface
+        self.yunet_detector = self._singleton.yunet_detector
+        self.hog_detector = self._singleton.hog_detector
     
     def _initialize_yunet(self):
         """Initialize YuNet face detector"""
@@ -132,7 +192,7 @@ class DeepFaceClient(FacialRecognition):
                             model_name='VGG-Face',
                             enforce_detection=False  # We already detected and cropped
                         )
-                        print("Vgg")
+                        print("VGG-Face")
                         # Convert to numpy array and ensure correct shape
                         features = np.array(embedding[0]['embedding'])
                         
@@ -145,10 +205,9 @@ class DeepFaceClient(FacialRecognition):
                         
                         return features
                     finally:
-                        print()
-                        # # Clean up temp file
-                        # if os.path.exists(temp_face_path):
-                        #     os.remove(temp_face_path)
+                        # Clean up temp file
+                        if os.path.exists(temp_face_path):
+                            os.remove(temp_face_path)
             
             # Fallback: use original image if no faces detected
             print(f"No faces detected in {image_path}, using full image")
