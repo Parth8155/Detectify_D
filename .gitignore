@@ -102,5 +102,3 @@ celerybeat-schedule
 *.swp
 *.swo
 
-# ONNX models
-*.onnx
