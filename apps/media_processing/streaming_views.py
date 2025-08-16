@@ -29,7 +29,6 @@ from ..cases.models import Case, VideoUpload
 from .tasks import (
     get_unified_processor,  # Use singleton to avoid repeated initialization
     get_suspect_data_for_processing,
-    process_single_frame_for_websocket
 )
 
 logger = logging.getLogger(__name__)
@@ -321,8 +320,8 @@ class VideoStreamConsumer(AsyncWebsocketConsumer):
                             else:
                                 x, y, w, h = bounding_box
                             
-                            if w < 60 or h < 60:
-                                continue
+                            # if w < 60 or h < 60:
+                            #     continue
                             
                             # Draw detection
                             cv2.rectangle(frame_display, (x, y), (x + w, y + h), (0, 255, 0), 2)
