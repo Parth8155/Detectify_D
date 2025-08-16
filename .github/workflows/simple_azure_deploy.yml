@@ -1,0 +1,45 @@
+# Alternative Simple Workflow for Detectify
+# Use this if you want publish profile authentication instead of service principal
+
+name: Deploy Detectify to Azure
+
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Collect static files
+      run: |
+        export DJANGO_SETTINGS_MODULE=detectify_project.settings.production
+        export SECRET_KEY=temp-build-key
+        export AZURE_POSTGRESQL_HOST=localhost
+        export AZURE_POSTGRESQL_NAME=temp
+        export AZURE_POSTGRESQL_USER=temp
+        export AZURE_POSTGRESQL_PASSWORD=temp
+        python manage.py collectstatic --noinput
+        
+    - name: Deploy to Azure Web App
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: 'your-app-name'  # Replace with your actual app name
+        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+        package: .
+        startup-command: 'bash startup.sh'
