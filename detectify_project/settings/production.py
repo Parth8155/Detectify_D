@@ -1,22 +1,27 @@
 """
-Production settings for Detectify project - Azure deployment
+Production settings for Detectify project - Render deployment
 """
 import os
+import dj_database_url
 from .base import *
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 
 # Get environment variables
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-change-me-in-production')
 
-# Azure App Service provides WEBSITE_HOSTNAME
+# Render provides these hosts
 ALLOWED_HOSTS = [
-    os.environ.get('WEBSITE_HOSTNAME', 'localhost'),
-    '*.azurewebsites.net',
+    os.environ.get('RENDER_EXTERNAL_HOSTNAME', 'localhost'),
+    '*.onrender.com',
     'localhost',
     '127.0.0.1',
 ]
+
+# Add any custom domain
+if custom_host := os.environ.get('ALLOWED_HOSTS'):
+    ALLOWED_HOSTS.extend(custom_host.split(','))
 
 # Enable HTTPS redirects
 SECURE_SSL_REDIRECT = True
@@ -36,20 +41,36 @@ CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = True
 
-# Database for Azure
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('AZURE_POSTGRESQL_NAME', 'detectify'),
-        'USER': os.environ.get('AZURE_POSTGRESQL_USER', ''),
-        'PASSWORD': os.environ.get('AZURE_POSTGRESQL_PASSWORD', ''),
-        'HOST': os.environ.get('AZURE_POSTGRESQL_HOST', ''),
-        'PORT': os.environ.get('AZURE_POSTGRESQL_PORT', '5432'),
-        'OPTIONS': {
-            'sslmode': 'require',
-        },
+# Database for Render (uses DATABASE_URL automatically)
+if DATABASE_URL := os.environ.get('DATABASE_URL'):
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.environ.get('PGDATABASE'),
+            'USER': os.environ.get('PGUSER'),
+            'PASSWORD': os.environ.get('PGPASSWORD'),
+            'HOST': os.environ.get('PGHOST'),
+            'PORT': os.environ.get('PGPORT', '5432'),
+            'OPTIONS': {
+                'sslmode': 'require',
+            },
+        }
     }
-}
+else:
+    # Fallback database config
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.environ.get('POSTGRES_DB', 'detectify'),
+            'USER': os.environ.get('POSTGRES_USER', ''),
+            'PASSWORD': os.environ.get('POSTGRES_PASSWORD', ''),
+            'HOST': os.environ.get('POSTGRES_HOST', 'localhost'),
+            'PORT': os.environ.get('POSTGRES_PORT', '5432'),
+            'OPTIONS': {
+                'sslmode': 'require',
+            },
+        }
+    }
 
 # Static files configuration for Azure
 STATIC_URL = '/static/'
@@ -62,23 +83,23 @@ STATICFILES_DIRS = [
 MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-# Media files - Azure Blob Storage (optional)
-if os.environ.get('AZURE_STORAGE_ACCOUNT_NAME'):
-    DEFAULT_FILE_STORAGE = 'storages.backends.azure_storage.AzureStorage'
-    AZURE_ACCOUNT_NAME = os.environ.get('AZURE_STORAGE_ACCOUNT_NAME')
-    AZURE_ACCOUNT_KEY = os.environ.get('AZURE_STORAGE_ACCOUNT_KEY')
-    AZURE_CONTAINER = os.environ.get('AZURE_STORAGE_CONTAINER', 'media')
-    MEDIA_URL = f'https://{AZURE_ACCOUNT_NAME}.blob.core.windows.net/{AZURE_CONTAINER}/'
-else:
-    # Use local media storage
-    MEDIA_URL = '/media/'
-    MEDIA_ROOT = BASE_DIR / 'media'
+# Media files - Local storage for Render (or use external service like Cloudinary)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+# For external storage like Cloudinary (optional)
+# if os.environ.get('CLOUDINARY_URL'):
+#     import cloudinary
+#     import cloudinary.uploader
+#     import cloudinary.api
+#     cloudinary.config(secure=True)
+#     DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
 # Celery with Redis for production
 CELERY_TASK_ALWAYS_EAGER = False
 CELERY_TASK_EAGER_PROPAGATES = False
 
-# Redis configuration for Azure Cache for Redis
+# Redis configuration for Render (Redis addon or external Redis service)
 REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
 CELERY_BROKER_URL = REDIS_URL
 CELERY_RESULT_BACKEND = REDIS_URL
@@ -93,7 +114,7 @@ CHANNEL_LAYERS = {
     },
 }
 
-# Email configuration (using Azure Communication Services or SendGrid)
+# Email configuration (using SendGrid or other SMTP service)
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.sendgrid.net')
 EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
