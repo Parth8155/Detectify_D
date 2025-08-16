@@ -44,7 +44,7 @@ Make sure these files exist in your repository:
    - **Region**: Same as database
    - **Branch**: `master` (or your main branch)
    - **Runtime**: `Python 3`
-   - **Build Command**: `pip install -r requirements.txt`
+   - **Build Command**: `python -m pip install --upgrade pip && pip install -r requirements-render.txt`
    - **Start Command**: `python manage.py collectstatic --noinput && python manage.py migrate --noinput && gunicorn detectify_project.wsgi:application --bind 0.0.0.0:$PORT`
 
 ## Step 3: Configure Environment Variables
@@ -120,7 +120,7 @@ If your app uses Celery for background tasks:
 2. Connect same GitHub repository
 3. Fill in details:
    - **Name**: `detectify-worker`
-   - **Build Command**: `pip install -r requirements.txt`
+   - **Build Command**: `python -m pip install --upgrade pip && pip install -r requirements-render.txt`
    - **Start Command**: `celery -A detectify_project worker --loglevel=info`
 4. Add same environment variables as web service
 5. Click **Create Background Worker**
