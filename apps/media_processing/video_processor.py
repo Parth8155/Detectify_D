@@ -28,7 +28,7 @@ class VideoProcessor:
         self.frame_interval = getattr(settings, 'FRAME_SAMPLING_INTERVAL', 0.25)
         self.buffer_before = getattr(settings, 'VIDEO_CLIP_BUFFER_BEFORE', 0.5)
         self.buffer_after = getattr(settings, 'VIDEO_CLIP_BUFFER_AFTER', 0.5)
-        self.frame_skip = getattr(settings, 'VIDEO_FRAME_SKIP', 5)  # Analyze every 10th frame for speed
+        self.frame_skip = getattr(settings, 'VIDEO_FRAME_SKIP', 20)  # Analyze every 10th frame for speed
         self.max_workers = getattr(settings, 'VIDEO_PROCESSING_WORKERS', 2)  # Limit concurrent threads
     
     def extract_video_metadata(self, video_path: str) -> Dict:
@@ -236,6 +236,7 @@ class VideoProcessor:
         Returns:
             bool: Success status
         """
+        print("create_summary_video...")
         try:
             if not timestamps:
                 return False
@@ -249,6 +250,8 @@ class VideoProcessor:
             # Buffer values
             buffer_before = self.buffer_before
             buffer_after = self.buffer_after
+            print("buffer_before ",buffer_before)
+            print("buffer_after ",buffer_after)
             min_gap = buffer_before + buffer_after - 1  # Minimum gap to consider clips separate
 
             # Build merged ranges

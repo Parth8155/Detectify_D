@@ -102,25 +102,44 @@
                 </div>
 
                 <div class="flex items-center space-x-4">
-                    <button class="p-2 hover:bg-slate-700 rounded-lg transition-colors">
-                        <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                        </svg>
-                    </button>
-                    <span class="text-slate-300 text-sm">{% block page_title %}Dashboard{% endblock %}</span>
+        
                     <a href="{% url 'cases:create_case' %}" class="bg-emerald-500 hover:bg-emerald-400 text-slate-900 px-4 py-2 rounded-lg font-medium text-sm transition-colors">
                         + New Case
                     </a>
-                    <div class="flex items-center space-x-2">
-                        <div class="w-8 h-8 bg-slate-700 rounded-full flex items-center justify-center">
-                            <span class="text-xs font-medium text-slate-300">{{ user.username|slice:":2"|upper }}</span>
-                        </div>
-                        <span class="text-slate-300 text-sm">{{ user.get_full_name|default:user.username }}</span>
-                        <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                        </svg>
-                    </div>
+                    <div class="relative flex items-center space-x-2">
+    <!-- User Menu Button -->
+    <button id="userMenuButton" onclick="toggleUserMenu()" 
+        aria-haspopup="true" aria-expanded="false" 
+        class="flex items-center space-x-2 text-gray-600 hover:text-amber-700">
+        
+        <!-- Avatar -->
+        <div class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+            <svg class="w-4 h-4 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
+            </svg>
+        </div>
+
+        <!-- Username -->
+        <span>{{ user.get_full_name|default:user.username }}</span>
+
+        <!-- Dropdown Arrow -->
+        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+    </button>
+
+    <!-- Dropdown -->
+    <div id="userMenu" 
+        class="absolute right-0 mt-2 w-28 bg-white rounded-md py-1 z-50 hidden">
+        <a href="{% url 'authentication:logout' %}" 
+           class="block px-4 py-2 text-gray-700 hover:bg-gray-200 hover:text-gray-700">
+           Logout
+        </a>
+    </div>  
+</div>
+
+
+                                
                 </div>
             </div>
         </div>
@@ -191,6 +210,45 @@
 
     <!-- Custom JavaScript -->
     <script>
+        // User menu toggle (no Alpine.js)
+        function toggleUserMenu() {
+            const menu = document.getElementById('userMenu');
+            const btn = document.getElementById('userMenuButton');
+            if (!menu || !btn) return;
+            const isHidden = menu.classList.contains('hidden');
+            if (isHidden) {
+                menu.classList.remove('hidden');
+                btn.setAttribute('aria-expanded', 'true');
+            } else {
+                menu.classList.add('hidden');
+                btn.setAttribute('aria-expanded', 'false');
+            }
+        }
+
+        // Close user menu when clicking outside
+        document.addEventListener('click', function (e) {
+            const menu = document.getElementById('userMenu');
+            const btn = document.getElementById('userMenuButton');
+            if (!menu || !btn) return;
+            if (menu.classList.contains('hidden')) return;
+            if (!menu.contains(e.target) && !btn.contains(e.target)) {
+                menu.classList.add('hidden');
+                btn.setAttribute('aria-expanded', 'false');
+            }
+        });
+
+        // Close on Escape key
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                const menu = document.getElementById('userMenu');
+                const btn = document.getElementById('userMenuButton');
+                if (menu && !menu.classList.contains('hidden')) {
+                    menu.classList.add('hidden');
+                    if (btn) btn.setAttribute('aria-expanded', 'false');
+                }
+            }
+        });
+
         // Auto-hide alerts after 6 seconds
         document.addEventListener('DOMContentLoaded', function () {
             setTimeout(function () {

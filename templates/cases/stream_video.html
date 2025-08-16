@@ -256,11 +256,6 @@
                 </div>
                 
                 <div class="stat-item">
-                    <span class="text-slate-400">FPS</span>
-                    <span id="streamFps" class="text-white font-medium">0</span>
-                </div>
-                
-                <div class="stat-item">
                     <span class="text-slate-400">Total Faces</span>
                     <span id="totalFaces" class="text-white font-medium">0</span>
                 </div>
@@ -333,7 +328,6 @@
     const progressPercent = document.getElementById('progressPercent');
     const progressBar = document.getElementById('progressBar');
     const currentFrame = document.getElementById('currentFrame');
-    const streamFps = document.getElementById('streamFps');
     const totalFaces = document.getElementById('totalFaces');
     const totalSuspects = document.getElementById('totalSuspects');
     const avgFaces = document.getElementById('avgFaces');
@@ -400,7 +394,6 @@
         progressPercent.textContent = `${stats.progress.toFixed(1)}%`;
         progressBar.style.width = `${stats.progress}%`;
         currentFrame.textContent = `${stats.processed_frames} / ${stats.total_frames}`;
-        streamFps.textContent = stats.fps.toFixed(1);
         totalFaces.textContent = stats.total_detections || stats.faces_detected || 0;
         totalSuspects.textContent = stats.suspects_detected || 0;
         avgFaces.textContent = (stats.avg_faces_per_frame || 0).toFixed(1);

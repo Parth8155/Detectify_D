@@ -16,6 +16,14 @@ from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.exceptions import DenyConnection
+from .tasks import get_unified_processor
+from apps.cases.models import SuspectImage
+import cv2
+import base64
+import numpy as np
+import json as json_module
+from apps.cases.models import DetectionResult, SuspectImage
+from apps.cases.models import ProcessedVideo
 
 from ..cases.models import Case, VideoUpload
 from .tasks import (
@@ -220,14 +228,6 @@ class VideoStreamConsumer(AsyncWebsocketConsumer):
     async def start_processing(self):
         """Start ultra-fast video processing optimized for WebSocket streaming"""
         try:
-            # Use direct processing instead of the complex callback approach
-            from .tasks import get_unified_processor
-            from apps.cases.models import SuspectImage
-            import cv2
-            import base64
-            import numpy as np
-            import json as json_module
-            
             # Get suspects
             suspects = await asyncio.get_event_loop().run_in_executor(
                 None, lambda: list(self.case.suspect_images.filter(processed=True))
@@ -273,7 +273,7 @@ class VideoStreamConsumer(AsyncWebsocketConsumer):
                 total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
                 
                 # Ultra-fast processing: Skip many frames (every 60 frames = ~2 seconds)
-                frame_skip = max(60, int(fps * 2))
+                frame_skip = 10
                 frame_number = 0
                 detections = []
                 frames_sent = 0
@@ -283,7 +283,7 @@ class VideoStreamConsumer(AsyncWebsocketConsumer):
                     'message': f'Starting fast processing: {total_frames} frames, processing every {frame_skip} frames'
                 }))
                 
-                while cap.isOpened() and frames_sent < 20:  # Limit to 20 frames max
+                while cap.isOpened():  # Limit to 20 frames max
                     ret, frame = cap.read()
                     if not ret:
                         break
@@ -315,7 +315,7 @@ class VideoStreamConsumer(AsyncWebsocketConsumer):
                         suspects_found = 0
                         
                         # Process first face only for speed
-                        for bounding_box, confidence in detected_faces[:1]:  # Only first face
+                        for bounding_box, confidence in detected_faces:  # Only first face
                             if scale != 1.0:
                                 x, y, w, h = [int(coord / scale) for coord in bounding_box]
                             else:
@@ -353,7 +353,6 @@ class VideoStreamConsumer(AsyncWebsocketConsumer):
                                             # Store detection in database for results page
                                             def save_detection():
                                                 try:
-                                                    from apps.cases.models import DetectionResult, SuspectImage
                                                     # Get the suspect image
                                                     suspect_images = list(self.case.suspect_images.all())
                                                     if i < len(suspect_images):
@@ -453,7 +452,6 @@ class VideoStreamConsumer(AsyncWebsocketConsumer):
                                 summary_data = f.read()
                             
                             # Save to database
-                            from apps.cases.models import ProcessedVideo
                             
                             def save_summary_video():
                                 processed_video, created = ProcessedVideo.objects.get_or_create(
@@ -561,119 +559,3 @@ class VideoStreamConsumer(AsyncWebsocketConsumer):
         except Exception as e:
             logger.error(f"Error marking video processed: {e}")
 
-
-class FrameByFrameVideoStreamConsumer(AsyncWebsocketConsumer):
-    """
-    Alternative WebSocket consumer for frame-by-frame processing
-    This gives more control over individual frame processing
-    """
-    
-    async def connect(self):
-        """Handle WebSocket connection"""
-        try:
-            # Same setup as above
-            self.case_id = self.scope['url_route']['kwargs']['case_id']
-            self.video_id = self.scope['url_route']['kwargs']['video_id']
-            self.user = self.scope['user']
-            
-            if not self.user.is_authenticated:
-                await self.close()
-                return
-            
-            # Validate access
-            case = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: Case.objects.get(id=self.case_id, user=self.user)
-            )
-            video = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: VideoUpload.objects.get(id=self.video_id, case=case)
-            )
-            
-            self.case = case
-            self.video = video
-            
-            await self.accept()
-            await self.setup_and_stream()
-            
-        except Exception as e:
-            logger.error(f"Connection error: {e}")
-            await self.close()
-    
-    async def setup_and_stream(self):
-        """Setup and start frame-by-frame streaming"""
-        try:
-            # Get suspect data
-            suspect_encodings, suspect_mapping = await asyncio.get_event_loop().run_in_executor(
-                None, get_suspect_data_for_processing, self.case_id
-            )
-            
-            # Create temporary video file
-            temp_video_path = await asyncio.get_event_loop().run_in_executor(
-                None, self.video.write_temp_file
-            )
-            
-            # Process frame by frame
-            import cv2
-            cap = cv2.VideoCapture(temp_video_path)
-            fps = cap.get(cv2.CAP_PROP_FPS)
-            frame_number = 0
-            
-            try:
-                while cap.isOpened():
-                    ret, frame = cap.read()
-                    if not ret:
-                        break
-                    
-                    timestamp = frame_number / fps if fps > 0 else 0
-                    
-                    # Process single frame
-                    frame_b64, faces_count, suspects_count = await asyncio.get_event_loop().run_in_executor(
-                        None,
-                        process_single_frame_for_websocket,
-                        frame,
-                        frame_number,
-                        timestamp,
-                        suspect_encodings,
-                        suspect_mapping,
-                        self.video,
-                        True  # save_detections
-                    )
-                    
-                    # Send frame if it has detections
-                    if frame_b64 is not None:
-                        frame_data = {
-                            'type': 'frame',
-                            'data': frame_b64,
-                            'timestamp': timestamp,
-                            'frame_number': frame_number,
-                            'faces_detected': faces_count,
-                            'suspects_detected': suspects_count
-                        }
-                        
-                        await self.send(text_data=json.dumps(frame_data))
-                    
-                    frame_number += 1
-                    
-                    # Control frame rate
-                    await asyncio.sleep(1/30)  # ~30 FPS
-            
-            finally:
-                cap.release()
-                if os.path.exists(temp_video_path):
-                    os.remove(temp_video_path)
-            
-            # Send completion
-            await self.send(text_data=json.dumps({
-                'type': 'completed',
-                'message': 'Frame-by-frame processing completed'
-            }))
-            
-        except Exception as e:
-            logger.error(f"Frame-by-frame streaming error: {e}")
-            await self.send(text_data=json.dumps({
-                'type': 'error',
-                'message': str(e)
-            }))
-    
-    async def disconnect(self, close_code):
-        """Handle disconnection"""
-        logger.info(f"Frame-by-frame WebSocket disconnected: {close_code}")

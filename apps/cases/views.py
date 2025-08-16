@@ -22,10 +22,11 @@ from apps.media_processing.tasks import process_video_task
 
 def dashboard(request):
     """Main dashboard view showing user's cases"""
+    # Use distinct counts to avoid duplicated rows caused by JOINs (videos <> detections)
     cases = Case.objects.filter(user=request.user).annotate(
-        suspect_count=Count('suspect_images'),
-        video_count=Count('videos'),
-        detection_count=Count('videos__detections')
+        suspect_count=Count('suspect_images', distinct=True),
+        video_count=Count('videos', distinct=True),
+        detection_count=Count('videos__detections', distinct=True)
     )
     
     # Filter by status if requested

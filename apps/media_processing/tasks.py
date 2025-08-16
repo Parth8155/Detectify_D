@@ -21,6 +21,7 @@ from .video_processor import VideoProcessor
 from .deepface_client_optimized import DeepFaceClient  # Use optimized singleton version
 from django.conf import settings
 from PIL import Image
+from apps.cases.models import Case
 
 # Global instances to avoid repeated initialization (expensive operations)
 _unified_processor_instance = None
@@ -331,6 +332,7 @@ class UnifiedVideoProcessor:
                                            detections: List[Dict], 
                                            output_path: str) -> bool:
         """Create summary video from detection results"""
+        print("creating summary video")
         if not detections:
             return False
         
@@ -951,9 +953,7 @@ def get_suspect_data_for_processing(case_id: int) -> Tuple[List[np.ndarray], Dic
         
     Returns:
         Tuple of (suspect_encodings, suspect_mapping)
-    """
-    from apps.cases.models import Case
-    
+    """    
     try:
         case = Case.objects.get(id=case_id)
         suspects = case.suspect_images.filter(processed=True)  # Fixed: use suspect_images, not suspects
