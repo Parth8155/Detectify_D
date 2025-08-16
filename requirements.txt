@@ -9,6 +9,8 @@ psycopg2-binary==2.9.9
 # Async processing
 celery==5.3.4
 django-celery-results==2.5.1
+redis==5.0.1
+django-redis==5.4.0
 
 # WebSocket support
 channels==4.0.0
@@ -16,18 +18,25 @@ channels-redis==4.1.0
 
 # Face recognition and image processing
 deepface==0.0.79
-opencv-python==4.8.1.78
+opencv-python-headless==4.8.1.78  # Headless version for server deployment
 mtcnn==0.1.1
 
 # Video processing
 moviepy==1.0.3
 
-# Additional utilities
+# Production utilities
 python-decouple==3.8
 whitenoise==6.6.0
 gunicorn==21.2.0
 
-# Development dependencies
+# Azure storage (optional)
+django-storages[azure]==1.14.2
+
+# Additional production dependencies
+sentry-sdk[django]==1.38.0  # Error tracking
+django-cors-headers==4.3.1  # CORS handling
+
+# Development dependencies (only install with --dev flag)
 pytest==7.4.3
 pytest-django==4.7.0
 black==23.11.0

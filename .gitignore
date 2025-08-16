@@ -102,3 +102,12 @@ celerybeat-schedule
 *.swp
 *.swo
 
+# Azure specific
+.azure/
+*.pubxml
+*.publishproj
+
+# Local settings
+local_settings.py
+logs/
+
